@@ -34,8 +34,8 @@ namespace Controllers
                 return Unauthorized("Usuario o contraseña inválidos");
 
             // Verificar contraseña con BCrypt
-           //if (!BCrypt.Net.BCrypt.Verify(login.Password, user.Password))
-             //   return Unauthorized("Usuario o contraseña inválidos");
+           if (!BCrypt.Net.BCrypt.Verify(login.Password, user.Password))
+                return Unauthorized("Usuario o contraseña inválidos");
 
             // Generar JWT
             var token = JwtHelper.GenerateToken(user, _config);
