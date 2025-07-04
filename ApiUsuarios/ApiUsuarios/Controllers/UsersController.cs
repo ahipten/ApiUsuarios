@@ -29,6 +29,8 @@ namespace Controllers
         [HttpPost]
         public async Task<IActionResult> Create(User user)
         {
+                Console.WriteLine($"🧾 Usuario autenticado: {User.Identity?.Name}");
+                Console.WriteLine($"🧾 Rol: {User.FindFirst(ClaimTypes.Role)?.Value}");
             // Log de claims para depuración
             var identity = HttpContext.User.Identity as ClaimsIdentity;
             var claims = identity?.Claims.Select(c => $"{c.Type}: {c.Value}");
