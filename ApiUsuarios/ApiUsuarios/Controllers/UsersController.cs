@@ -9,6 +9,7 @@ namespace Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Produces("application/json")]
     public class UsersController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -29,8 +30,8 @@ namespace Controllers
         [HttpPost]
         public async Task<IActionResult> Create(User user)
         {
-                Console.WriteLine($"🧾 Usuario autenticado: {User.Identity?.Name}");
-                Console.WriteLine($"🧾 Rol: {User.FindFirst(ClaimTypes.Role)?.Value}");
+            Console.WriteLine($"🧾 Usuario autenticado: {User.Identity?.Name}");
+            Console.WriteLine($"🧾 Rol: {User.FindFirst(ClaimTypes.Role)?.Value}");
             // Log de claims para depuración
             var identity = HttpContext.User.Identity as ClaimsIdentity;
             var claims = identity?.Claims.Select(c => $"{c.Type}: {c.Value}");
@@ -62,7 +63,7 @@ namespace Controllers
                 return Forbid();
 
             existingUser.Username = user.Username;
-            existingUser.Role     = user.Role;
+            existingUser.Role = user.Role;
 
             if (!string.IsNullOrWhiteSpace(user.Password))
                 existingUser.Password = BCrypt.Net.BCrypt.HashPassword(user.Password);
