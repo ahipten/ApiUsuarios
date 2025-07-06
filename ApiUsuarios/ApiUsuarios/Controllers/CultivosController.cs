@@ -3,11 +3,13 @@ using Microsoft.AspNetCore.Authorization;
 using Models;
 using Data;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Produces("application/json")]
     public class CultivosController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -16,9 +18,7 @@ namespace Controllers
         [Authorize]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Cultivo>>> Get()
-        {
-            return await _context.Cultivos.ToListAsync();
-        }
+            => await _context.Cultivos.ToListAsync();
 
         [Authorize]
         [HttpGet("{id}")]
@@ -32,9 +32,27 @@ namespace Controllers
         [HttpPost]
         public async Task<IActionResult> Create(Cultivo cultivo)
         {
-            _context.Cultivos.Add(cultivo);
-            await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetById), new { id = cultivo.Id }, cultivo);
+            try
+            {
+                Console.WriteLine($"🧾 Intentando crear cultivo: {cultivo.Nombre}");
+
+                // Verifica si ya existe un cultivo con el mismo nombre (ignorando mayúsculas/minúsculas)
+                var exists = await _context.Cultivos
+                    .AnyAsync(c => c.Nombre.ToLower() == cultivo.Nombre.ToLower());
+
+                if (exists)
+                    return Conflict($"El cultivo '{cultivo.Nombre}' ya existe.");
+
+                _context.Cultivos.Add(cultivo);
+                await _context.SaveChangesAsync();
+
+                return CreatedAtAction(nameof(GetById), new { id = cultivo.Id }, cultivo);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Error en Create Cultivo: {ex.Message}");
+                return StatusCode(500, "Error interno al registrar cultivo.");
+            }
         }
 
         [Authorize(Roles = "Admin")]
