@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Data;          // tu AppDbContext
 using Models;        // tu clase User
 using System.Security.Claims; // <-- Agrega esto
+using BCrypt.Net;   // <-- Asegúrate de tener esta línea
 
 namespace Controllers
 {
@@ -32,15 +33,17 @@ namespace Controllers
         {
             Console.WriteLine($"🧾 Usuario autenticado: {User.Identity?.Name}");
             Console.WriteLine($"🧾 Rol: {User.FindFirst(ClaimTypes.Role)?.Value}");
-            // Log de claims para depuración
+
             var identity = HttpContext.User.Identity as ClaimsIdentity;
             var claims = identity?.Claims.Select(c => $"{c.Type}: {c.Value}");
             Console.WriteLine("Claims recibidos en POST /api/users: " + string.Join(", ", claims ?? new string[0]));
 
+            // 🔐 Hashear la contraseña antes de guardar
+            user.Password = BCrypt.Net.BCrypt.HashPassword(user.Password);
+
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
 
-            // Devuelve 201 con ubicación
             return CreatedAtAction(nameof(GetAll), new { id = user.Id }, user);
         }
 
@@ -56,7 +59,6 @@ namespace Controllers
             var existingUser = await _context.Users.FindAsync(id);
             if (existingUser is null) return NotFound();
 
-            // Permite que cada usuario cambie solo su cuenta o Admin
             var requestingUser = HttpContext.User;
             var isAdmin = requestingUser.IsInRole("Admin");
             if (!isAdmin && requestingUser.Identity?.Name != existingUser.Username)

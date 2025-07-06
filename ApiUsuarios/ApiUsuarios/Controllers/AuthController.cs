@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Models;
 using Data;
-using Helpers; 
+using Helpers;
 using BCrypt.Net;
 
 namespace Controllers
@@ -25,35 +25,41 @@ namespace Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto login)
         {
-            // Buscar usuario por nombre
+            // 1️⃣ Buscar usuario
             var user = await _context.Users
                                      .AsNoTracking()
                                      .FirstOrDefaultAsync(u => u.Username == login.Username);
 
-            if (user == null)
+            if (user is null)
                 return Unauthorized("Usuario o contraseña inválidos");
 
-            // Verificar contraseña con BCrypt
-            if (!BCrypt.Net.BCrypt.Verify(login.Password, user.Password))
-               return Unauthorized("Usuario o contraseña inválidos");
+            // 2️⃣ Verificar contraseña con BCrypt
+            try
+            {
+                if (!BCrypt.Net.BCrypt.Verify(login.Password, user.Password))
+                    return Unauthorized("Usuario o contraseña inválidos");
+            }
+            catch (BCrypt.Net.SaltParseException)
+            {
+                // Si la contraseña en BD no es un hash válido, la tratamos como inválida
+                return Unauthorized("Usuario o contraseña inválidos");
+            }
 
-            // Generar JWT
-            var token = JwtHelper.GenerateToken(user, _config);
+            // 3️⃣ Generar JWT
+            var token = JwtHelper.GenerateToken(user, _config)
+                                 .Replace("\r", "").Replace("\n", ""); // limpiamos saltos de línea
 
-            var rawToken = token.Replace("\n", "").Replace("\r", "");
-
-            //Imprimir en consola
+            // 4️⃣ Log opcional
             Console.WriteLine($"🔐 TOKEN: {token}");
             Console.WriteLine($"🔐 USERNAME: {user.Username}");
             Console.WriteLine($"🔐 ROLE: {user.Role}");
-            // Opcional: devolver también info del usuario
+
             return Ok(new
             {
                 token,
                 username = user.Username,
-                role = user.Role
+                role     = user.Role
             });
-            
         }
     }
 }

@@ -4,6 +4,7 @@ using System.Text;
 using Data;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using BCrypt.Net; // Necesario para usar BCrypt
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -101,4 +102,28 @@ app.UseAuthentication(); // 🔐 primero autenticación
 app.UseAuthorization();
 
 app.MapControllers();
+
+// ✅ MIGRACIÓN AUTOMÁTICA DE CONTRASEÑAS A BCRYPT
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var users = db.Users.Where(u => !u.Password.StartsWith("$2")).ToList(); // No están hasheadas
+
+    foreach (var user in users)
+    {
+        Console.WriteLine($"🔐 Migrando contraseña para: {user.Username}");
+        user.Password = BCrypt.Net.BCrypt.HashPassword(user.Password);
+    }
+
+    if (users.Any())
+    {
+        await db.SaveChangesAsync();
+        Console.WriteLine($"✅ Migradas {users.Count} contraseñas.");
+    }
+    else
+    {
+        Console.WriteLine("🔍 No hay contraseñas sin migrar.");
+    }
+}
+
 app.Run();
