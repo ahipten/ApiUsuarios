@@ -66,5 +66,19 @@ namespace Controllers
             await _context.SaveChangesAsync();
             return NoContent();
         }
+        [Authorize(Roles = "Admin")]
+        [HttpPut("{id}")]
+        public async Task<IActionResult> Update(int id, Cultivo cultivo)
+        {
+            if (id != cultivo.Id) return BadRequest("El ID no coincide.");
+
+            var cultivoExistente = await _context.Cultivos.FindAsync(id);
+            if (cultivoExistente == null) return NotFound();
+
+            cultivoExistente.Nombre = cultivo.Nombre;
+
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }
     }
 }
