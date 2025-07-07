@@ -4,7 +4,8 @@ using System.Text;
 using Data;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
-using BCrypt.Net; // Necesario para usar BCrypt
+using System.Text.Json.Serialization;   // ← Necesario
+using BCrypt.Net;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,7 +13,14 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-builder.Services.AddControllers();
+// ✅ Controladores con IgnoreCycles
+builder.Services.AddControllers()
+    .AddJsonOptions(opts =>
+    {
+        // Evita excepciones por ciclos de navegación (Sensor ↔ Usuario, etc.)
+        opts.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+    });
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -28,17 +36,16 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     {
         options.RequireHttpsMetadata = false;
         options.SaveToken = true;
-
         options.TokenValidationParameters = new TokenValidationParameters
         {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
+            ValidateIssuer           = true,
+            ValidateAudience         = true,
+            ValidateLifetime         = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = jwt["Issuer"],
-            ValidAudience = jwt["Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(key),
-            RoleClaimType = ClaimTypes.Role
+            ValidIssuer              = jwt["Issuer"],
+            ValidAudience            = jwt["Audience"],
+            IssuerSigningKey         = new SymmetricSecurityKey(key),
+            RoleClaimType            = ClaimTypes.Role
         };
 
         options.Events = new JwtBearerEvents
@@ -50,32 +57,17 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
                 if (!string.IsNullOrEmpty(rawHeader) && rawHeader.StartsWith("Bearer "))
                 {
-                    // Extraer y limpiar token
-                    var token = rawHeader.Substring("Bearer ".Length).Trim();
-                    token = token.Trim('\'', '"');
+                    var token = rawHeader.Substring("Bearer ".Length).Trim(' ', '\'', '"');
                     context.Token = token;
-
                     Console.WriteLine($"[TOKEN LIMPIO]: '{token}' (len: {token.Length})");
                 }
-
-                if (string.IsNullOrEmpty(context.Token))
-                {
-                    Console.WriteLine("[❌ JWT] Token no recibido o inválido.");
-                }
-
                 return Task.CompletedTask;
             },
-
             OnAuthenticationFailed = context =>
             {
                 Console.WriteLine($"❌ JWT Authentication failed: {context.Exception.Message}");
-                if (context.Exception.InnerException != null)
-                {
-                    Console.WriteLine($"❗ Inner Exception: {context.Exception.InnerException.Message}");
-                }
                 return Task.CompletedTask;
             },
-
             OnTokenValidated = context =>
             {
                 Console.WriteLine("✅ JWT Token validado correctamente.");
@@ -94,20 +86,21 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
 app.UseSwagger();
 app.UseSwaggerUI();
 app.UseCors();
 
-app.UseAuthentication(); // 🔐 primero autenticación
+app.UseAuthentication();   // primero autenticación
 app.UseAuthorization();
 
 app.MapControllers();
 
-// ✅ MIGRACIÓN AUTOMÁTICA DE CONTRASEÑAS A BCRYPT
+// 🔄 Migración automática de contraseñas a BCrypt
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    var users = db.Users.Where(u => !u.Password.StartsWith("$2")).ToList(); // No están hasheadas
+    var users = db.Users.Where(u => !u.Password.StartsWith("$2")).ToList();
 
     foreach (var user in users)
     {

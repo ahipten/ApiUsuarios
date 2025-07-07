@@ -19,11 +19,25 @@ namespace Controllers
         // ─────────────────────────────────────────────────────────────
         // GET api/users   — listado (solo autenticados)
         // ─────────────────────────────────────────────────────────────
+        //[Authorize]
+        //[HttpGet]
+        //public async Task<IActionResult> GetAll()
+        //    => Ok(await _context.Users.AsNoTracking().ToListAsync());
         [Authorize]
         [HttpGet]
         public async Task<IActionResult> GetAll()
-            => Ok(await _context.Users.AsNoTracking().ToListAsync());
+        {
+            var users = await _context.Users
+                .AsNoTracking()
+                .Select(u => new {
+                    id = u.Id,
+                    username = u.Username,
+                    role = u.Role
+                })
+                .ToListAsync();
 
+            return Ok(users);
+        }
         // ─────────────────────────────────────────────────────────────
         // POST api/users  — crear (solo Admin)
         // ─────────────────────────────────────────────────────────────
