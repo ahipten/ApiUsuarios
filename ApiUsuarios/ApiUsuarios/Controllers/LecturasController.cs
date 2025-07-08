@@ -141,8 +141,8 @@ namespace Controllers
                 using var csv = new CsvReader(reader, config);
 
                 // 👇 Agregamos soporte para fechas en formato dd/MM/yyyy
-                var dateOptions = new TypeConverterOptions { Formats = new[] { "dd/MM/yyyy" } };
-                csv.Context.TypeConverterOptionsCache.AddOptions<DateTime>(dateOptions);
+                //var dateOptions = new TypeConverterOptions { Formats = new[] { "d/M/yyyy", "dd/MM/yyyy", "d/MM/yyyy", "dd/M/yyyy" } };
+                //csv.Context.TypeConverterOptionsCache.AddOptions<DateTime>(dateOptions);
 
                 var records = csv.GetRecords<LecturaCsvRow>().ToList();
                 var idsSensores = await _context.Sensores.Select(s => s.Id).ToListAsync();
@@ -192,8 +192,9 @@ namespace Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"ERROR GENERAL: {ex.Message}");
-                return StatusCode(500, $"Error al procesar CSV: {ex.Message}");
+                var inner = ex.InnerException?.Message ?? ex.Message;
+                Console.WriteLine($"ERROR GENERAL: {inner}");
+                return StatusCode(500, $"Error al procesar CSV: {inner}");
             }
         }
 

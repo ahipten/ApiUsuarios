@@ -7,6 +7,8 @@ namespace Models
     {
         public int? SensorId { get; set; }
         public string? Cultivo { get; set; }
+
+        [TypeConverter(typeof(CustomDateConverter))]
         public DateTime Fecha { get; set; }
         public float HumedadSuelo { get; set; }
         public float Temperatura { get; set; }
