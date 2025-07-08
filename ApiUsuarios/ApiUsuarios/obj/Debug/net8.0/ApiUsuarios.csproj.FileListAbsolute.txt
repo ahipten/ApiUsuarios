@@ -177,3 +177,4 @@ E:\backend\ApiUsuarios\ApiUsuarios\ApiUsuarios\obj\Debug\net8.0\refint\ApiUsuari
 E:\backend\ApiUsuarios\ApiUsuarios\ApiUsuarios\obj\Debug\net8.0\ApiUsuarios.pdb
 E:\backend\ApiUsuarios\ApiUsuarios\ApiUsuarios\obj\Debug\net8.0\ApiUsuarios.genruntimeconfig.cache
 E:\backend\ApiUsuarios\ApiUsuarios\ApiUsuarios\obj\Debug\net8.0\ref\ApiUsuarios.dll
+E:\backend\ApiUsuarios\ApiUsuarios\ApiUsuarios\bin\Debug\net8.0\CsvHelper.dll
