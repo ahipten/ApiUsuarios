@@ -112,9 +112,9 @@ namespace Controllers
         [Authorize(Roles = "Admin")]
         [HttpPost("upload-csv")]
         [Consumes("multipart/form-data")]
-        public async Task<IActionResult> UploadCsv([FromForm] IFormFile file)
+        public async Task<IActionResult> UploadCsv([FromForm] FileUploadDto file)
         {
-            if (file == null || file.Length == 0)
+            if (file == null || file.File.Length == 0)
                 return BadRequest("Archivo CSV no válido.");
 
             var cultivoMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
@@ -129,7 +129,7 @@ namespace Controllers
 
             try
             {
-                using var reader = new StreamReader(file.OpenReadStream());
+                using var reader = new StreamReader(file.File.OpenReadStream());
                 var config = new CsvConfiguration(CultureInfo.InvariantCulture)
                 {
                     HasHeaderRecord = true,

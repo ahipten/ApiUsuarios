@@ -21,14 +21,14 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddPredictionEnginePool<LecturaInput, LecturaPrediction>()
     .FromFile("MLModels/ModeloRiego.zip", watchForChanges: true);
 
-// ✅ Controladores con IgnoreCycles
+// ✅ Controladores con IgnoreCycles (evita errores de referencias circulares al serializar JSON)
 builder.Services.AddControllers()
     .AddJsonOptions(opts =>
     {
         opts.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
     });
 
-// 🌍 CORS
+// 🌍 CORS para permitir acceso desde React u otro frontend
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
@@ -89,24 +89,29 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-// 🌐 Swagger (con soporte para carga de archivos)
+// 🌐 Swagger con soporte para carga de archivos
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
     options.SupportNonNullableReferenceTypes();
-    options.OperationFilter<FileUploadOperation>(); // ✅ Para IFormFile
+  //  options.OperationFilter<FileUploadOperation>(); // ✅ Permite manejar IFormFile en Swagger
+
     options.SwaggerDoc("v1", new OpenApiInfo
     {
         Title = "Riego API",
-        Version = "v1"
+        Version = "v1",
+        Description = "API para gestión y predicción de riego agrícola."
     });
 });
 
 var app = builder.Build();
 
-// Middleware
+// Middleware de documentación
 app.UseSwagger();
-app.UseSwaggerUI();
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Riego API V1");
+});
 
 app.UseCors();
 
@@ -115,7 +120,7 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-// 🔄 Migración automática de contraseñas
+// 🔄 Migración automática de contraseñas (una sola vez al iniciar)
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
