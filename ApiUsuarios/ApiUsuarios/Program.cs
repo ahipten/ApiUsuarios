@@ -4,8 +4,12 @@ using System.Text;
 using Data;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
-using System.Text.Json.Serialization;   // ← Necesario
+using System.Text.Json.Serialization;
 using BCrypt.Net;
+using Microsoft.Extensions.ML;
+using Models;
+using Microsoft.OpenApi.Models;
+using Swashbuckle.AspNetCore.SwaggerGen;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,16 +17,25 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+// 🔮 ML.NET modelo predictivo
+builder.Services.AddPredictionEnginePool<LecturaInput, LecturaPrediction>()
+    .FromFile("MLModels/ModeloRiego.zip", watchForChanges: true);
+
 // ✅ Controladores con IgnoreCycles
 builder.Services.AddControllers()
     .AddJsonOptions(opts =>
     {
-        // Evita excepciones por ciclos de navegación (Sensor ↔ Usuario, etc.)
         opts.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
     });
 
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+// 🌍 CORS
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+        policy.WithOrigins("http://localhost:3000")
+              .AllowAnyHeader()
+              .AllowAnyMethod());
+});
 
 // 🔐 JWT Config
 var jwt = builder.Configuration.GetSection("Jwt");
@@ -76,27 +89,33 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-// 🌍 CORS
-builder.Services.AddCors(options =>
+// 🌐 Swagger (con soporte para carga de archivos)
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
 {
-    options.AddDefaultPolicy(policy =>
-        policy.WithOrigins("http://localhost:3000")
-              .AllowAnyHeader()
-              .AllowAnyMethod());
+    options.SupportNonNullableReferenceTypes();
+    options.OperationFilter<FileUploadOperation>(); // ✅ Para IFormFile
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Riego API",
+        Version = "v1"
+    });
 });
 
 var app = builder.Build();
 
+// Middleware
 app.UseSwagger();
 app.UseSwaggerUI();
+
 app.UseCors();
 
-app.UseAuthentication();   // primero autenticación
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 
-// 🔄 Migración automática de contraseñas a BCrypt
+// 🔄 Migración automática de contraseñas
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();

@@ -111,6 +111,7 @@ namespace Controllers
         // ────────────────────────────
         [Authorize(Roles = "Admin")]
         [HttpPost("upload-csv")]
+        [Consumes("multipart/form-data")]
         public async Task<IActionResult> UploadCsv([FromForm] IFormFile file)
         {
             if (file == null || file.Length == 0)
