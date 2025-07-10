@@ -41,14 +41,13 @@ namespace Controllers
 
                 var input = new LecturaInput
                 {
-                    HumedadSuelo    = lectura.HumedadSuelo,
-                    Temperatura     = lectura.Temperatura,
-                    Precipitacion   = lectura.Precipitacion,
-                    Viento          = lectura.Viento,
-                    RadiacionSolar  = lectura.RadiacionSolar,
+                    HumedadSuelo    = lectura.HumedadSuelo ?? 0f,
+                    Temperatura     = lectura.Temperatura ?? 0f,
+                    Precipitacion   = lectura.Precipitacion ?? 0f,
+                    Viento          = lectura.Viento ?? 0f,
+                    RadiacionSolar  = lectura.RadiacionSolar ?? 0f,
                     EtapaCultivo    = lectura.EtapaCultivo,
-                    Cultivo         = await ObtenerNombreCultivo(lectura.CultivoId),
-                    Fecha           = lectura.Fecha
+                    Cultivo         = await ObtenerNombreCultivo(lectura.CultivoId)
                 };
 
                 return Ok(ConstruirRespuesta(input));
@@ -80,27 +79,80 @@ namespace Controllers
                 return StatusCode(500, new { mensaje = "Error interno del servidor", detalle = ex.Message });
             }
         }
+        // En PrediccionesController.cs
+
+        [HttpGet("regar-todos")]
+        public async Task<IActionResult> PredecirTodos()
+        {
+            try
+            {
+                var lecturas = await _context.Lecturas
+                    .Include(l => l.Cultivo)
+                    .OrderByDescending(l => l.Fecha)
+                    .Take(20) // Puedes ajustar este número o quitarlo si deseas todas
+                    .ToListAsync();
+
+                var resultados = new List<object>();
+
+                foreach (var lectura in lecturas)
+                {
+                    var input = new LecturaInput
+                    {
+                        HumedadSuelo = lectura.HumedadSuelo.HasValue ? Convert.ToSingle(lectura.HumedadSuelo.Value) : 0f,
+                        Temperatura    = lectura.Temperatura.HasValue ? Convert.ToSingle(lectura.Temperatura.Value) : 0f,
+                        Precipitacion  = lectura.Precipitacion.HasValue ? Convert.ToSingle(lectura.Precipitacion.Value) : 0f,
+                        Viento         = lectura.Viento.HasValue ? Convert.ToSingle(lectura.Viento.Value) : 0f,
+                        RadiacionSolar = lectura.RadiacionSolar.HasValue ? Convert.ToSingle(lectura.RadiacionSolar.Value) : 0f,
+                        EtapaCultivo   = lectura.EtapaCultivo,
+                        Cultivo        = await ObtenerNombreCultivo(lectura.CultivoId)
+                    };
+
+                    var prediccion = _predEnginePool.Predict(input);
+                    double consumoPromedio = (CONSUMO_MIN_M3 + CONSUMO_MAX_M3) / 2.0;
+                    double costoEstimado = prediccion.NecesitaRiego ? consumoPromedio * COSTO_POR_M3 : 0;
+                    string temporada = DeterminarTemporada(input.Cultivo, lectura.Fecha);
+
+                    resultados.Add(new
+                    {
+                        necesitaRiego = prediccion.NecesitaRiego,
+                        probabilidad = Math.Round(prediccion.Score, 2),
+                        costo_estimado = Math.Round(costoEstimado, 2),
+                        temporada,
+                        cultivo = input.Cultivo,
+                        etapa = input.EtapaCultivo,
+                        fecha = lectura.Fecha.ToString("yyyy-MM-dd")
+                    });
+                }
+
+                return Ok(resultados);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Error al predecir todos: {ex.Message}");
+                return StatusCode(500, new { mensaje = "Error interno del servidor", detalle = ex.Message });
+            }
+        }
 
         // ─────────────────────────────
         // Método para usar el modelo ML.NET
         // ─────────────────────────────
         private object ConstruirRespuesta(LecturaInput input)
         {
-            var prediccion = _predEnginePool.Predict(modelName: null, example: input);
+            var prediccion = _predEnginePool.Predict(input);
 
             double consumoPromedio = (CONSUMO_MIN_M3 + CONSUMO_MAX_M3) / 2.0;
             double costoEstimado = prediccion.NecesitaRiego ? consumoPromedio * COSTO_POR_M3 : 0;
-            string temporada = DeterminarTemporada(input.Cultivo ?? "Desconocido", input.Fecha);
-
+            string temporada = DeterminarTemporada(input.Cultivo ?? "Desconocido", DateTime.Now);
+            double probabilidad = 1.0 / (1.0 + Math.Exp(-prediccion.Score));
             return new
             {
                 necesitaRiego = prediccion.NecesitaRiego,
-                probabilidad = Math.Round(prediccion.Score?.Length > 1 ? prediccion.Score[1] : 0, 2),
+                probabilidad = Math.Round(probabilidad, 2),  // Ya es un float directo
                 costo_estimado = Math.Round(costoEstimado, 2),
                 temporada,
                 cultivo = input.Cultivo,
                 etapa = input.EtapaCultivo,
-                fecha = input.Fecha.ToString("yyyy-MM-dd")
+                fecha = DateTime.Now.ToString("yyyy-MM-dd")
             };
         }
 

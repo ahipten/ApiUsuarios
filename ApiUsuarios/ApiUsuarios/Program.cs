@@ -141,6 +141,30 @@ using (var scope = app.Services.CreateScope())
     {
         Console.WriteLine("🔍 No hay contraseñas sin migrar.");
     }
+
+    // ✅ Verificación del modelo ML.NET
+    var predPool = scope.ServiceProvider.GetRequiredService<PredictionEnginePool<LecturaInput, LecturaPrediction>>();
+    try
+    {
+        var resultado = predPool.Predict(new LecturaInput
+        {
+            HumedadSuelo = 20,
+            Temperatura = 25,
+            Precipitacion = 5,
+            Viento = 2,
+            RadiacionSolar = 100,
+            EtapaCultivo = "Crecimiento",
+            Cultivo = "Maiz",
+            Fecha = DateTime.Today
+        });
+
+        Console.WriteLine($"✅ Modelo ML.NET cargado correctamente. ¿Necesita riego?: {resultado.NecesitaRiego}");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"❌ Error al cargar o usar el modelo ML.NET: {ex.Message}");
+    }
 }
+
 
 app.Run();
