@@ -9,11 +9,11 @@ namespace Models
         public Cultivo? Cultivo { get; set; }
         public DateTime Fecha { get; set; }
 
-        public float? HumedadSuelo { get; set; }
-        public float? Temperatura { get; set; }
-        public float? Precipitacion { get; set; }
-        public float? Viento { get; set; }
-        public float? RadiacionSolar { get; set; }
+        public double HumedadSuelo { get; set; }
+        public double Temperatura { get; set; }
+        public double Precipitacion { get; set; }
+        public double Viento { get; set; }
+        public double RadiacionSolar { get; set; }
 
         public string EtapaCultivo { get; set; } = "";
         public bool? NecesitaRiego { get; set; }

@@ -155,7 +155,7 @@ using (var scope = app.Services.CreateScope())
             RadiacionSolar = 100,
             EtapaCultivo = "Crecimiento",
             Cultivo = "Maiz",
-            Fecha = DateTime.Today
+            //Fecha = DateTime.Today
         });
 
         Console.WriteLine($"✅ Modelo ML.NET cargado correctamente. ¿Necesita riego?: {resultado.NecesitaRiego}");

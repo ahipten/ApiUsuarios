@@ -24,8 +24,57 @@ namespace Controllers
         }
 
         // ─────────────────────────────
+        // GET: api/predicciones/regar-avanzado/sensor/{sensorId}
+        // Usa la última lectura registrada por sensor
+        // ─────────────────────────────
+        [HttpGet("regar-avanzado/sensor/{sensorId}")]
+        public async Task<IActionResult> PredecirPorSensor(int sensorId)
+        {
+            try
+            {
+                var lectura = await _context.Lecturas
+                    .Include(l => l.Cultivo)
+                    .Where(l => l.SensorId == sensorId)
+                    .OrderByDescending(l => l.Fecha)
+                    .FirstOrDefaultAsync();
+
+                if (lectura == null)
+                {
+                    return Ok(new
+                    {
+                        necesitaRiego = false,
+                        probabilidad = 0.0,
+                        costo_estimado = 0.0,
+                        temporada = "N/A",
+                        cultivo = "Desconocido",
+                        etapa = "N/A",
+                        fecha = DateTime.Now.ToString("yyyy-MM-dd")
+                    });
+                }
+
+                var input = new LecturaInput
+                {
+                    HumedadSuelo    = (float)lectura.HumedadSuelo,
+                    Temperatura     = (float)lectura.Temperatura,
+                    Precipitacion   = (float)lectura.Precipitacion,
+                    Viento          = (float)lectura.Viento,
+                    RadiacionSolar  = (float)lectura.RadiacionSolar,
+                    EtapaCultivo    = lectura.EtapaCultivo,
+                    Cultivo         = await ObtenerNombreCultivo(lectura.CultivoId)
+                };
+
+                return Ok(ConstruirRespuesta(input, lectura.Fecha));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Error al predecir por SensorId: {ex.Message}");
+                return StatusCode(500, new { mensaje = "Error interno del servidor", detalle = ex.Message });
+            }
+        }
+
+        // ─────────────────────────────
         // GET: api/predicciones/regar-avanzado/{id}
-        // Usa una lectura guardada en BD
+        // Usa una lectura específica por su Id (ya existente)
         // ─────────────────────────────
         [HttpGet("regar-avanzado/{id}")]
         public async Task<IActionResult> PredecirDesdeBD(int id)
@@ -41,16 +90,16 @@ namespace Controllers
 
                 var input = new LecturaInput
                 {
-                    HumedadSuelo    = lectura.HumedadSuelo ?? 0f,
-                    Temperatura     = lectura.Temperatura ?? 0f,
-                    Precipitacion   = lectura.Precipitacion ?? 0f,
-                    Viento          = lectura.Viento ?? 0f,
-                    RadiacionSolar  = lectura.RadiacionSolar ?? 0f,
+                    HumedadSuelo    = (float)lectura.HumedadSuelo,
+                    Temperatura     = (float)lectura.Temperatura,
+                    Precipitacion   = (float)lectura.Precipitacion,
+                    Viento          = (float)lectura.Viento,
+                    RadiacionSolar  = (float)lectura.RadiacionSolar,
                     EtapaCultivo    = lectura.EtapaCultivo,
                     Cultivo         = await ObtenerNombreCultivo(lectura.CultivoId)
                 };
 
-                return Ok(ConstruirRespuesta(input));
+                return Ok(ConstruirRespuesta(input, lectura.Fecha));
             }
             catch (Exception ex)
             {
@@ -71,7 +120,7 @@ namespace Controllers
                 if (input == null)
                     return BadRequest(new { mensaje = "Entrada inválida" });
 
-                return Ok(ConstruirRespuesta(input));
+                return Ok(ConstruirRespuesta(input, DateTime.Now));
             }
             catch (Exception ex)
             {
@@ -79,8 +128,10 @@ namespace Controllers
                 return StatusCode(500, new { mensaje = "Error interno del servidor", detalle = ex.Message });
             }
         }
-        // En PrediccionesController.cs
-
+        // ─────────────────────────────
+        // GET: api/predicciones/regar-todos
+        // Retorna una lista de predicciones recientes
+        // ─────────────────────────────
         [HttpGet("regar-todos")]
         public async Task<IActionResult> PredecirTodos()
         {
@@ -88,8 +139,8 @@ namespace Controllers
             {
                 var lecturas = await _context.Lecturas
                     .Include(l => l.Cultivo)
-                    .OrderByDescending(l => l.Fecha)
-                    .Take(20) // Puedes ajustar este número o quitarlo si deseas todas
+                    .GroupBy(l => l.CultivoId)
+                    .Select(g => g.OrderByDescending(l => l.Fecha).First())
                     .ToListAsync();
 
                 var resultados = new List<object>();
@@ -98,30 +149,16 @@ namespace Controllers
                 {
                     var input = new LecturaInput
                     {
-                        HumedadSuelo = lectura.HumedadSuelo.HasValue ? Convert.ToSingle(lectura.HumedadSuelo.Value) : 0f,
-                        Temperatura    = lectura.Temperatura.HasValue ? Convert.ToSingle(lectura.Temperatura.Value) : 0f,
-                        Precipitacion  = lectura.Precipitacion.HasValue ? Convert.ToSingle(lectura.Precipitacion.Value) : 0f,
-                        Viento         = lectura.Viento.HasValue ? Convert.ToSingle(lectura.Viento.Value) : 0f,
-                        RadiacionSolar = lectura.RadiacionSolar.HasValue ? Convert.ToSingle(lectura.RadiacionSolar.Value) : 0f,
-                        EtapaCultivo   = lectura.EtapaCultivo,
-                        Cultivo        = await ObtenerNombreCultivo(lectura.CultivoId)
+                        HumedadSuelo = (float)lectura.HumedadSuelo,
+                        Temperatura = (float)lectura.Temperatura,
+                        Precipitacion = (float)lectura.Precipitacion,
+                        Viento = (float)lectura.Viento,
+                        RadiacionSolar = (float)lectura.RadiacionSolar,
+                        EtapaCultivo = lectura.EtapaCultivo,
+                        Cultivo = await ObtenerNombreCultivo(lectura.CultivoId)
                     };
 
-                    var prediccion = _predEnginePool.Predict(input);
-                    double consumoPromedio = (CONSUMO_MIN_M3 + CONSUMO_MAX_M3) / 2.0;
-                    double costoEstimado = prediccion.NecesitaRiego ? consumoPromedio * COSTO_POR_M3 : 0;
-                    string temporada = DeterminarTemporada(input.Cultivo, lectura.Fecha);
-
-                    resultados.Add(new
-                    {
-                        necesitaRiego = prediccion.NecesitaRiego,
-                        probabilidad = Math.Round(prediccion.Score, 2),
-                        costo_estimado = Math.Round(costoEstimado, 2),
-                        temporada,
-                        cultivo = input.Cultivo,
-                        etapa = input.EtapaCultivo,
-                        fecha = lectura.Fecha.ToString("yyyy-MM-dd")
-                    });
+                    resultados.Add(ConstruirRespuesta(input, lectura.Fecha));
                 }
 
                 return Ok(resultados);
@@ -132,27 +169,52 @@ namespace Controllers
                 return StatusCode(500, new { mensaje = "Error interno del servidor", detalle = ex.Message });
             }
         }
+        // ─────────────────────────────
+        // GET: api/predicciones/sensores-con-lecturas
+        // Retorna todos los SensorId únicos que tienen lecturas
+        // ─────────────────────────────
+        [HttpGet("sensores-con-lecturas")]
+        public async Task<IActionResult> ObtenerSensoresConLecturas()
+        {
+            try
+            {
+                var sensores = await _context.Lecturas
+                    .Select(l => l.SensorId)
+                    .Distinct()
+                    .ToListAsync();
+
+                return Ok(sensores);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Error al obtener sensores con lecturas: {ex.Message}");
+                return StatusCode(500, new { mensaje = "Error interno del servidor", detalle = ex.Message });
+            }
+        }
+
 
         // ─────────────────────────────
-        // Método para usar el modelo ML.NET
+        // MÉTODOS AUXILIARES
         // ─────────────────────────────
-        private object ConstruirRespuesta(LecturaInput input)
+
+        private object ConstruirRespuesta(LecturaInput input, DateTime fecha)
         {
             var prediccion = _predEnginePool.Predict(input);
 
             double consumoPromedio = (CONSUMO_MIN_M3 + CONSUMO_MAX_M3) / 2.0;
-            double costoEstimado = prediccion.NecesitaRiego ? consumoPromedio * COSTO_POR_M3 : 0;
-            string temporada = DeterminarTemporada(input.Cultivo ?? "Desconocido", DateTime.Now);
+            double costoEstimado = consumoPromedio * COSTO_POR_M3; //: 0;//prediccion.NecesitaRiego ?
             double probabilidad = 1.0 / (1.0 + Math.Exp(-prediccion.Score));
+            string temporada = DeterminarTemporada(input.Cultivo ?? "Desconocido", fecha);
+
             return new
             {
                 necesitaRiego = prediccion.NecesitaRiego,
-                probabilidad = Math.Round(probabilidad, 2),  // Ya es un float directo
+                probabilidad = Math.Round(probabilidad, 2),
                 costo_estimado = Math.Round(costoEstimado, 2),
                 temporada,
                 cultivo = input.Cultivo,
                 etapa = input.EtapaCultivo,
-                fecha = DateTime.Now.ToString("yyyy-MM-dd")
+                fecha = fecha.ToString("yyyy-MM-dd")
             };
         }
 
