@@ -1,55 +1,82 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.ML;
-using Microsoft.ML.Data;
-using System.Linq;
+using Microsoft.Extensions.ML;
+using Microsoft.EntityFrameworkCore;
 using Models;
-
-[ApiController]
-[Route("api/[controller]")]
-public class MetricasController : ControllerBase
+using Data;
+namespace RiegoAPI.Controllers
 {
-    private readonly IWebHostEnvironment _env;
-
-    public MetricasController(IWebHostEnvironment env)
+    [ApiController]
+    [Route("api/[controller]")]
+    public class MetricasController : ControllerBase
     {
-        _env = env;
-    }
+        private readonly AppDbContext _context;
+        private readonly IWebHostEnvironment _env;
+        private readonly PredictionEnginePool<LecturaInput, LecturaPrediction> _predictionEngine;
 
-    [HttpGet]
-    public IActionResult ObtenerMetricas()
-    {
-        var mlContext = new MLContext();
-
-        var modelPath = Path.Combine(_env.ContentRootPath, "MLModels", "ModeloRiego.zip");
-        if (!System.IO.File.Exists(modelPath))
-            return NotFound("Modelo no encontrado.");
-
-        ITransformer modelo = mlContext.Model.Load(modelPath, out var modeloInputSchema);
-
-        // Cargar datos de prueba para evaluar el modelo
-        var dataPath = Path.Combine(_env.ContentRootPath, "MLModels", "datos_test.csv");
-        if (!System.IO.File.Exists(dataPath))
-            return NotFound("Archivo de prueba no encontrado.");
-
-        var dataView = mlContext.Data.LoadFromTextFile<LecturaInput>(
-            path: dataPath,
-            hasHeader: true,
-            separatorChar: ',');
-
-        var predictions = modelo.Transform(dataView);
-
-        var metrics = mlContext.BinaryClassification.Evaluate(predictions, labelColumnName: "Label");
-
-        var resultado = new MetricasResultado
+        public MetricasController(
+            AppDbContext context,
+            IWebHostEnvironment env,
+            PredictionEnginePool<LecturaInput, LecturaPrediction> predictionEngine)
         {
-            Accuracy = (float)metrics.Accuracy,
-            Precision = (float)metrics.PositivePrecision,
-            Recall = (float)metrics.PositiveRecall,
-            Specificity = (float)metrics.NegativeRecall,
-            F1 = (float)metrics.F1Score,
-            Auc = (float)metrics.AreaUnderRocCurve
-        };
+            _context = context;
+            _env = env;
+            _predictionEngine = predictionEngine;
+        }
 
-        return Ok(resultado);
+        [HttpGet("evaluar")]
+        public async Task<IActionResult> EvaluarModelo()
+        {
+            // 🔍 Obtener las lecturas reales desde la base de datos
+            var lecturas = await _context.Lecturas
+                .Include(l => l.Cultivo)
+                .ToListAsync();
+
+            if (lecturas.Count == 0)
+                return NotFound("No hay datos de prueba disponibles.");
+
+            int tp = 0, tn = 0, fp = 0, fn = 0;
+
+            foreach (var l in lecturas)
+            {
+                var input = new LecturaInput
+                {
+                    HumedadSuelo = (float)l.HumedadSuelo,
+                    Temperatura = (float)l.Temperatura,
+                    Precipitacion = (float)l.Precipitacion,
+                    Viento = (float)l.Viento,
+                    RadiacionSolar = (float)l.RadiacionSolar,
+                    EtapaCultivo = l.EtapaCultivo,
+                    Cultivo = l.Cultivo?.Nombre ?? ""
+                };
+
+                var prediction = _predictionEngine.Predict(input);
+                bool predicho = prediction.NecesitaRiego;
+                bool real = l.NecesitaRiego ?? false; // evitar error de nullable
+
+                if (predicho && real) tp++;
+                else if (predicho && !real) fp++;
+                else if (!predicho && real) fn++;
+                else tn++;
+            }
+
+            int total = tp + tn + fp + fn;
+            float accuracy = total > 0 ? (float)(tp + tn) / total : 0;
+            float precision = (tp + fp) > 0 ? (float)tp / (tp + fp) : 0;
+            float recall = (tp + fn) > 0 ? (float)tp / (tp + fn) : 0;
+            float specificity = (tn + fp) > 0 ? (float)tn / (tn + fp) : 0;
+            float f1 = (precision + recall) > 0 ? 2 * (precision * recall) / (precision + recall) : 0;
+
+            var resultado = new MetricasResultado
+            {
+                Accuracy = accuracy,
+                Precision = precision,
+                Recall = recall,
+                Specificity = specificity,
+                F1 = f1,
+                Auc = (recall + specificity) / 2
+            };
+
+            return Ok(resultado);
+        }
     }
 }
