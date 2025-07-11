@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.ML;
 using Models;
 using Data;
+using Microsoft.ML;
 
 namespace Controllers
 {
@@ -76,51 +77,59 @@ namespace Controllers
 
         // GET: api/predicciones/regar-todos
         [HttpGet("regar-todos")]
-        public async Task<IActionResult> PredecirTodos()
+        public async Task<IActionResult> PredecirParaTodo2024()
         {
-            try
+            var fechaInicio = new DateTime(2024, 1, 1);
+            var fechaFin = new DateTime(2024, 12, 31);
+
+            var lecturas = await _context.Lecturas
+                .Include(l => l.Cultivo) // Asegúrate de tener la relación
+                .Where(l => l.Fecha >= fechaInicio && l.Fecha <= fechaFin)
+                .ToListAsync();
+
+            var resultados = new List<object>();
+
+            foreach (var lectura in lecturas)
             {
-                var lecturas = await _context.Lecturas
-                    .Include(l => l.Cultivo)
-                    .GroupBy(l => l.CultivoId)
-                    .Select(g => g.OrderByDescending(l => l.Fecha).First())
-                    .ToListAsync();
-
-                var resultados = new List<object>();
-
-                foreach (var lectura in lecturas)
+                var input = new LecturaInput
                 {
-                    var input = new LecturaInput
-                    {
-                        HumedadSuelo = (float)lectura.HumedadSuelo,
-                        Temperatura = (float)lectura.Temperatura,
-                        Precipitacion = (float)lectura.Precipitacion,
-                        Viento = (float)lectura.Viento,
-                        RadiacionSolar = (float)lectura.RadiacionSolar,
-                        EtapaCultivo = lectura.EtapaCultivo,
-                        Cultivo = await ObtenerNombreCultivo(lectura.CultivoId)
-                    };
+                    HumedadSuelo = (float)lectura.HumedadSuelo,
+                    Temperatura = (float)lectura.Temperatura,
+                    Precipitacion = (float)lectura.Precipitacion,
+                    Viento = (float)lectura.Viento,
+                    RadiacionSolar = (float)lectura.RadiacionSolar,
+                    EtapaCultivo = lectura.EtapaCultivo,
+                    Cultivo = await ObtenerNombreCultivo(lectura.CultivoId)
+                };
 
-                    var respuesta = ConstruirRespuesta(input, lectura.Fecha);
-                    resultados.Add(respuesta);
-                }
+                var prediction = _predEnginePool.Predict(input);
 
-                return Ok(resultados);
+                resultados.Add(new
+                {
+                    necesitaRiego = prediction.NecesitaRiego,
+                    probabilidad = Math.Round(prediction.Score * 100, 2),
+                    costo_estimado = prediction.NecesitaRiego ? 98990 : 0, // usa tu lógica de costo real aquí
+                    temporada = DeterminarTemporada(await ObtenerNombreCultivo(lectura.CultivoId),lectura.Fecha),
+                    cultivo = await ObtenerNombreCultivo(lectura.CultivoId),
+                    etapa = lectura.EtapaCultivo,
+                    fecha = lectura.Fecha.ToString("yyyy-MM-dd"),
+                    explicacion = ObtenerExplicacionBasadaEn(input)
+                });
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"❌ Error al predecir todos: {ex.Message}");
-                return StatusCode(500, new { mensaje = "Error interno del servidor", detalle = ex.Message });
-            }
+
+            return Ok(resultados);
         }
+
 
         // Método para usar el modelo ML.NET y construir la respuesta enriquecida
         private object ConstruirRespuesta(LecturaInput input, DateTime fecha)
         {
             var prediccion = _predEnginePool.Predict(input);
+            float threshold = 0.3f;
+            bool necesitaRiegoConUmbral = prediccion.Score >= threshold;
 
             double consumoPromedio = (CONSUMO_MIN_M3 + CONSUMO_MAX_M3) / 2.0;
-            double costoEstimado = prediccion.NecesitaRiego ? consumoPromedio * COSTO_POR_M3 : 0;
+            double costoEstimado = necesitaRiegoConUmbral ? consumoPromedio * COSTO_POR_M3 : 0;
             string temporada = DeterminarTemporada(input.Cultivo ?? "Desconocido", fecha);
             double probabilidad = 1.0 / (1.0 + Math.Exp(-prediccion.Score));
 
@@ -128,8 +137,8 @@ namespace Controllers
 
             return new
             {
-                necesitaRiego = prediccion.NecesitaRiego,
-                probabilidad = Math.Round(probabilidad, 2),
+                necesitaRiego = necesitaRiegoConUmbral,
+                probabilidad = Math.Round(prediccion.Score * 100, 2),
                 costo_estimado = Math.Round(costoEstimado, 2),
                 temporada,
                 cultivo = input.Cultivo,
