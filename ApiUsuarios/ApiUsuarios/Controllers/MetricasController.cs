@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.ML;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 using Models;
 using Data;
+
 namespace RiegoAPI.Controllers
 {
     [ApiController]
@@ -26,13 +28,30 @@ namespace RiegoAPI.Controllers
         [HttpGet("evaluar")]
         public async Task<IActionResult> EvaluarModelo()
         {
-            // 🔍 Obtener las lecturas reales desde la base de datos
             var lecturas = await _context.Lecturas
                 .Include(l => l.Cultivo)
                 .ToListAsync();
 
             if (lecturas.Count == 0)
                 return NotFound("No hay datos de prueba disponibles.");
+
+            // Leer umbral desde threshold.json
+            float threshold = 0.3f;
+            string path = Path.Combine(_env.ContentRootPath, "metricas_modelo.json");
+
+            if (System.IO.File.Exists(path))
+            {
+                try
+                {
+                    var json = System.IO.File.ReadAllText(path);
+                    var config = JsonSerializer.Deserialize<ThresholdConfig>(json);
+                    if (config != null) threshold = config.Valor;
+                }
+                catch
+                {
+                    Console.WriteLine("⚠️ Error al leer el archivo threshold.json. Usando threshold por defecto.");
+                }
+            }
 
             int tp = 0, tn = 0, fp = 0, fn = 0;
 
@@ -46,12 +65,14 @@ namespace RiegoAPI.Controllers
                     Viento = (float)l.Viento,
                     RadiacionSolar = (float)l.RadiacionSolar,
                     EtapaCultivo = l.EtapaCultivo,
-                    Cultivo = l.Cultivo?.Nombre ?? ""
+                    Cultivo = l.CultivoId.ToString(),
+                    Mes = l.Fecha.Month,
+                    DiaDelAnio = l.Fecha.DayOfYear
                 };
 
                 var prediction = _predictionEngine.Predict(input);
-                bool predicho = prediction.NecesitaRiego;
-                bool real = l.NecesitaRiego ?? false; // evitar error de nullable
+                bool predicho = prediction.Score >= threshold;
+                bool real = l.NecesitaRiego ?? false;
 
                 if (predicho && real) tp++;
                 else if (predicho && !real) fp++;
@@ -78,5 +99,11 @@ namespace RiegoAPI.Controllers
 
             return Ok(resultado);
         }
+    }
+
+    // Clase para leer threshold.json
+    public class ThresholdConfig
+    {
+        public float Valor { get; set; }
     }
 }

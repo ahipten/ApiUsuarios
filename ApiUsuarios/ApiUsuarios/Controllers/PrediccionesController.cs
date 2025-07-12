@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.ML;
 using Models;
 using Data;
-using Microsoft.ML;
+using System.Text.Json;
 
 namespace Controllers
 {
@@ -14,7 +14,7 @@ namespace Controllers
         private readonly AppDbContext _context;
         private readonly PredictionEnginePool<LecturaInput, LecturaPrediction> _predEnginePool;
 
-        private const double COSTO_POR_M3 = 5.21;
+        private const double COSTO_POR_M3 = 1.24;
         private const int CONSUMO_MIN_M3 = 18000;
         private const int CONSUMO_MAX_M3 = 20000;
 
@@ -24,66 +24,42 @@ namespace Controllers
             _predEnginePool = predEnginePool;
         }
 
-        // GET: api/predicciones/regar-avanzado/{id}
         [HttpGet("regar-avanzado/{id}")]
         public async Task<IActionResult> PredecirDesdeBD(int id)
         {
-            try
+            var lectura = await _context.Lecturas.Include(l => l.Cultivo).FirstOrDefaultAsync(l => l.Id == id);
+            if (lectura == null) return NotFound(new { mensaje = "Lectura no encontrada" });
+
+            var input = new LecturaInput
             {
-                var lectura = await _context.Lecturas
-                    .Include(l => l.Cultivo)
-                    .FirstOrDefaultAsync(l => l.Id == id);
+                HumedadSuelo = (float)lectura.HumedadSuelo,
+                Temperatura = (float)lectura.Temperatura,
+                Precipitacion = (float)lectura.Precipitacion,
+                Viento = (float)lectura.Viento,
+                RadiacionSolar = (float)lectura.RadiacionSolar,
+                EtapaCultivo = lectura.EtapaCultivo,
+                Cultivo = await ObtenerNombreCultivo(lectura.CultivoId),
+                Mes = (float)lectura.Fecha.Month,
+                DiaDelAnio = (float)lectura.Fecha.DayOfYear
+            };
 
-                if (lectura == null)
-                    return NotFound(new { mensaje = "Lectura no encontrada" });
-
-                var input = new LecturaInput
-                {
-                    HumedadSuelo = (float)lectura.HumedadSuelo,
-                    Temperatura = (float)lectura.Temperatura,
-                    Precipitacion = (float)lectura.Precipitacion,
-                    Viento = (float)lectura.Viento,
-                    RadiacionSolar = (float)lectura.RadiacionSolar,
-                    EtapaCultivo = lectura.EtapaCultivo,
-                    Cultivo = await ObtenerNombreCultivo(lectura.CultivoId)
-                };
-
-                return Ok(ConstruirRespuesta(input, lectura.Fecha));
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"❌ Error al predecir por ID: {ex.Message}");
-                return StatusCode(500, new { mensaje = "Error interno del servidor", detalle = ex.Message });
-            }
+            return Ok(ConstruirRespuesta(input, lectura.Fecha));
         }
 
-        // POST: api/predicciones/regar-avanzado
         [HttpPost("regar-avanzado")]
         public IActionResult PredecirDesdeInput([FromBody] LecturaInput input)
         {
-            try
-            {
-                if (input == null)
-                    return BadRequest(new { mensaje = "Entrada inválida" });
-
-                return Ok(ConstruirRespuesta(input, DateTime.Now));
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"❌ Error en predicción directa: {ex.Message}");
-                return StatusCode(500, new { mensaje = "Error interno del servidor", detalle = ex.Message });
-            }
+            if (input == null) return BadRequest(new { mensaje = "Entrada inválida" });
+            return Ok(ConstruirRespuesta(input, DateTime.Now));
         }
 
-        // GET: api/predicciones/regar-todos
         [HttpGet("regar-todos")]
         public async Task<IActionResult> PredecirParaTodo2024()
         {
             var fechaInicio = new DateTime(2024, 1, 1);
             var fechaFin = new DateTime(2024, 12, 31);
 
-            var lecturas = await _context.Lecturas
-                .Include(l => l.Cultivo) // Asegúrate de tener la relación
+            var lecturas = await _context.Lecturas.Include(l => l.Cultivo)
                 .Where(l => l.Fecha >= fechaInicio && l.Fecha <= fechaFin)
                 .ToListAsync();
 
@@ -99,17 +75,21 @@ namespace Controllers
                     Viento = (float)lectura.Viento,
                     RadiacionSolar = (float)lectura.RadiacionSolar,
                     EtapaCultivo = lectura.EtapaCultivo,
-                    Cultivo = await ObtenerNombreCultivo(lectura.CultivoId)
+                    Cultivo = await ObtenerNombreCultivo(lectura.CultivoId),
+                    Mes = (float)lectura.Fecha.Month,
+                    DiaDelAnio = (float)lectura.Fecha.DayOfYear
                 };
 
                 var prediction = _predEnginePool.Predict(input);
+                var threshold = ObtenerUmbralDesdeJson();
+                var necesitaRiego = prediction.Score >= threshold;
 
                 resultados.Add(new
                 {
-                    necesitaRiego = prediction.NecesitaRiego,
+                    necesitaRiego,
                     probabilidad = Math.Round(prediction.Score * 100, 2),
-                    costo_estimado = prediction.NecesitaRiego ? 98990 : 0, // usa tu lógica de costo real aquí
-                    temporada = DeterminarTemporada(await ObtenerNombreCultivo(lectura.CultivoId),lectura.Fecha),
+                    costo_estimado = necesitaRiego ? 98990 : 0,
+                    temporada = DeterminarTemporada(await ObtenerNombreCultivo(lectura.CultivoId), lectura.Fecha),
                     cultivo = await ObtenerNombreCultivo(lectura.CultivoId),
                     etapa = lectura.EtapaCultivo,
                     fecha = lectura.Fecha.ToString("yyyy-MM-dd"),
@@ -120,20 +100,16 @@ namespace Controllers
             return Ok(resultados);
         }
 
-
-        // Método para usar el modelo ML.NET y construir la respuesta enriquecida
+        // 🔧 Lógica de predicción con lectura de umbral desde JSON
         private object ConstruirRespuesta(LecturaInput input, DateTime fecha)
         {
             var prediccion = _predEnginePool.Predict(input);
-            float threshold = 0.3f;
+            float threshold = ObtenerUmbralDesdeJson();
             bool necesitaRiegoConUmbral = prediccion.Score >= threshold;
 
             double consumoPromedio = (CONSUMO_MIN_M3 + CONSUMO_MAX_M3) / 2.0;
             double costoEstimado = necesitaRiegoConUmbral ? consumoPromedio * COSTO_POR_M3 : 0;
             string temporada = DeterminarTemporada(input.Cultivo ?? "Desconocido", fecha);
-            double probabilidad = 1.0 / (1.0 + Math.Exp(-prediccion.Score));
-
-            string explicacion = ObtenerExplicacionBasadaEn(input);
 
             return new
             {
@@ -144,8 +120,27 @@ namespace Controllers
                 cultivo = input.Cultivo,
                 etapa = input.EtapaCultivo,
                 fecha = fecha.ToString("yyyy-MM-dd"),
-                explicacion
+                explicacion = ObtenerExplicacionBasadaEn(input)
             };
+        }
+
+        // 🔍 Lector del umbral dinámico desde el archivo JSON
+        private float ObtenerUmbralDesdeJson()
+        {
+            var ruta = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "data", "metricas_modelo.json");
+
+            if (!System.IO.File.Exists(ruta))
+                return 0.5f; // Umbral por defecto
+
+            var json = System.IO.File.ReadAllText(ruta);
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            if (root.TryGetProperty("threshold", out var thresholdProp) &&
+                thresholdProp.TryGetSingle(out float threshold))
+                return threshold;
+
+            return 0.5f;
         }
 
         private async Task<string> ObtenerNombreCultivo(int cultivoId)

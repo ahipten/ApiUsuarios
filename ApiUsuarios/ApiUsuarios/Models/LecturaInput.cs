@@ -12,6 +12,8 @@ namespace Models
         public string EtapaCultivo { get; set; } = string.Empty;
         public string Cultivo { get; set; } = string.Empty;
         public bool NecesitaRiego { get; set; }
+        public float Mes { get; set; }
+        public float DiaDelAnio { get; set; }
 
     }
 }
