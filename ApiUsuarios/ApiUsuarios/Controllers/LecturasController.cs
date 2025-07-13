@@ -20,6 +20,7 @@ namespace Controllers
         public LecturasController(AppDbContext context) => _context = context;
 
         // GET: api/lecturas
+        // Devuelve todas las lecturas con sus sensores y cultivos
         [Authorize]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Lectura>>> Get()
@@ -29,8 +30,42 @@ namespace Controllers
                 .Include(l => l.Cultivo)
                 .ToListAsync();
         }
+        // GET: api/lecturas/geo-lecturas
+        // Devuelve lecturas con geolocalización y una intensidad basada en la humedad del
+        
+       [HttpGet("geo-lecturas")]
+        public async Task<IActionResult> GetLecturasGeolocalizadas([FromQuery] int? anio, [FromQuery] int? mes, [FromQuery] string? cultivo)
+        {
+            var query = _context.Lecturas
+                .Include(l => l.Cultivo)
+                .AsNoTracking()
+                .Where(l => l.Lat != 0 && l.Lng != 0);
+
+            if (anio.HasValue)
+                query = query.Where(l => l.Fecha.Year == anio.Value);
+
+            if (mes.HasValue)
+                query = query.Where(l => l.Fecha.Month == mes.Value);
+
+            if (!string.IsNullOrEmpty(cultivo))
+                query = query.Where(l => l.Cultivo != null && l.Cultivo.Nombre == cultivo);
+
+            var lecturas = await query
+                .Select(l => new {
+                    lat = l.Lat,
+                    lng = l.Lng,
+                    intensidad = l.HumedadSuelo < 30 ? 1 :
+                                l.Viento > 20 ? 0.8 :
+                                l.Precipitacion > 50 ? 0.6 :
+                                0.3
+                })
+                .ToListAsync();
+
+            return Ok(lecturas);
+        }
 
         // GET: api/lecturas/{id}
+        // Devuelve una lectura por ID con sus detalles
         [Authorize]
         [HttpGet("{id}")]
         public async Task<ActionResult<Lectura>> GetById(int id)
@@ -44,6 +79,7 @@ namespace Controllers
         }
 
         // POST: api/lecturas
+        // Crea una nueva lectura
         [Authorize(Roles = "Agricultor,Admin")]
         [HttpPost]
         public async Task<IActionResult> Create(LecturaDto dto)
@@ -93,6 +129,7 @@ namespace Controllers
         }
 
         // DELETE: api/lecturas/{id}
+        // Elimina una lectura por ID    
         [Authorize(Roles = "Admin")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)

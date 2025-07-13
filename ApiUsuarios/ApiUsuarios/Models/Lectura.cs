@@ -17,5 +17,9 @@ namespace Models
 
         public string EtapaCultivo { get; set; } = "";
         public bool? NecesitaRiego { get; set; }
+
+        // 🔽 Agrega esto
+        public double? Lat { get; set; }
+        public double? Lng { get; set; }
     }
 }
