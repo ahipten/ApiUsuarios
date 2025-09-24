@@ -89,7 +89,6 @@ D:\Escritorio\PI1\Proyecto1\Pages\ApiUsuarios\ApiUsuarios\obj\Debug\net8.0\ref\A
 D:\Escritorio\PI1\Proyecto1\Pages\ApiUsuarios\ApiUsuarios\bin\Debug\net8.0\BCrypt.Net-Next.dll
 E:\backend\ApiUsuarios\ApiUsuarios\ApiUsuarios\bin\Debug\net8.0\appsettings.Development.json
 E:\backend\ApiUsuarios\ApiUsuarios\ApiUsuarios\bin\Debug\net8.0\appsettings.json
-E:\backend\ApiUsuarios\ApiUsuarios\ApiUsuarios\bin\Debug\net8.0\metricas_modelo.json
 E:\backend\ApiUsuarios\ApiUsuarios\ApiUsuarios\bin\Debug\net8.0\MLModels\ModeloRiego.zip
 E:\backend\ApiUsuarios\ApiUsuarios\ApiUsuarios\bin\Debug\net8.0\ApiUsuarios.exe
 E:\backend\ApiUsuarios\ApiUsuarios\ApiUsuarios\bin\Debug\net8.0\ApiUsuarios.deps.json
