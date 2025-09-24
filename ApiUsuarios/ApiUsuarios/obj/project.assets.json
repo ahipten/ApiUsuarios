@@ -86,6 +86,31 @@
           }
         }
       },
+      "LightGBM/3.3.5": {
+        "type": "package",
+        "build": {
+          "build/LightGBM.props": {},
+          "build/LightGBM.targets": {}
+        },
+        "runtimeTargets": {
+          "runtimes/linux-x64/native/lib_lightgbm.so": {
+            "assetType": "native",
+            "rid": "linux-x64"
+          },
+          "runtimes/osx-x64/native/lib_lightgbm.dylib": {
+            "assetType": "native",
+            "rid": "osx-x64"
+          },
+          "runtimes/win-x64/native/lib_lightgbm.dll": {
+            "assetType": "native",
+            "rid": "win-x64"
+          },
+          "runtimes/win-x64/native/lightgbm.exe": {
+            "assetType": "native",
+            "rid": "win-x64"
+          }
+        }
+      },
       "Microsoft.AspNetCore.Authentication.JwtBearer/8.0.4": {
         "type": "package",
         "dependencies": {
@@ -1237,6 +1262,24 @@
           }
         }
       },
+      "Microsoft.ML.LightGbm/4.0.2": {
+        "type": "package",
+        "dependencies": {
+          "LightGBM": "3.3.5",
+          "Microsoft.ML": "4.0.2",
+          "Microsoft.ML.FastTree": "4.0.2"
+        },
+        "compile": {
+          "lib/netstandard2.0/Microsoft.ML.LightGbm.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.0/Microsoft.ML.LightGbm.dll": {
+            "related": ".xml"
+          }
+        }
+      },
       "Microsoft.OpenApi/1.6.23": {
         "type": "package",
         "compile": {
@@ -2109,6 +2152,23 @@
         "lib/netstandard2.0/Humanizer.dll",
         "lib/netstandard2.0/Humanizer.xml",
         "logo.png"
+      ]
+    },
+    "LightGBM/3.3.5": {
+      "sha512": "6LwKO13R9q8zZHbYNeHhayUj3/sN410L6B9QZfV/tyzuoaddur1Uy0yV0gK4FfLl3FVC0LxnfiCOrHva0xX3yQ==",
+      "type": "package",
+      "path": "lightgbm/3.3.5",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "build/LightGBM.props",
+        "build/LightGBM.targets",
+        "lightgbm.3.3.5.nupkg.sha512",
+        "lightgbm.nuspec",
+        "runtimes/linux-x64/native/lib_lightgbm.so",
+        "runtimes/osx-x64/native/lib_lightgbm.dylib",
+        "runtimes/win-x64/native/lib_lightgbm.dll",
+        "runtimes/win-x64/native/lightgbm.exe"
       ]
     },
     "Microsoft.AspNetCore.Authentication.JwtBearer/8.0.4": {
@@ -4049,6 +4109,23 @@
         "runtimes/win-x86/native/FastTreeNative.dll"
       ]
     },
+    "Microsoft.ML.LightGbm/4.0.2": {
+      "sha512": "2vaz6k2jwgDedUw9iaSOoqGdo+OYAI+y4P14uWBHmMnybkuo6udW8esAuRwW2bi/fRWxIPHKxjOLwRADg9zwTw==",
+      "type": "package",
+      "path": "microsoft.ml.lightgbm/4.0.2",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "LICENSE",
+        "PACKAGE.md",
+        "THIRD-PARTY-NOTICES.TXT",
+        "lib/netstandard2.0/Microsoft.ML.LightGbm.dll",
+        "lib/netstandard2.0/Microsoft.ML.LightGbm.xml",
+        "microsoft.ml.lightgbm.4.0.2.nupkg.sha512",
+        "microsoft.ml.lightgbm.nuspec",
+        "mlnetlogo.png"
+      ]
+    },
     "Microsoft.OpenApi/1.6.23": {
       "sha512": "tZ1I0KXnn98CWuV8cpI247A17jaY+ILS9vvF7yhI0uPPEqF4P1d7BWL5Uwtel10w9NucllHB3nTkfYTAcHAh8g==",
       "type": "package",
@@ -5370,6 +5447,7 @@
       "Microsoft.Extensions.ML >= 4.0.2",
       "Microsoft.IdentityModel.Tokens >= 7.1.2",
       "Microsoft.ML.FastTree >= 4.0.2",
+      "Microsoft.ML.LightGbm >= 4.0.2",
       "Swashbuckle.AspNetCore >= 9.0.3",
       "System.IdentityModel.Tokens.Jwt >= 7.1.2"
     ]
@@ -5461,6 +5539,10 @@
             "version": "[7.1.2, )"
           },
           "Microsoft.ML.FastTree": {
+            "target": "Package",
+            "version": "[4.0.2, )"
+          },
+          "Microsoft.ML.LightGbm": {
             "target": "Package",
             "version": "[4.0.2, )"
           },

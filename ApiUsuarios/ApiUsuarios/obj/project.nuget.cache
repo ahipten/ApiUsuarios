@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "/oC6LCoGRAI=",
+  "dgSpecHash": "Vv4QWVEnxKM=",
   "success": true,
   "projectFilePath": "E:\\backend\\ApiUsuarios\\ApiUsuarios\\ApiUsuarios\\ApiUsuarios.csproj",
   "expectedPackageFiles": [
@@ -9,6 +9,7 @@
     "C:\\Users\\angel\\.nuget\\packages\\bcrypt.net-next\\4.0.3\\bcrypt.net-next.4.0.3.nupkg.sha512",
     "C:\\Users\\angel\\.nuget\\packages\\csvhelper\\33.1.0\\csvhelper.33.1.0.nupkg.sha512",
     "C:\\Users\\angel\\.nuget\\packages\\humanizer.core\\2.14.1\\humanizer.core.2.14.1.nupkg.sha512",
+    "C:\\Users\\angel\\.nuget\\packages\\lightgbm\\3.3.5\\lightgbm.3.3.5.nupkg.sha512",
     "C:\\Users\\angel\\.nuget\\packages\\microsoft.aspnetcore.authentication.jwtbearer\\8.0.4\\microsoft.aspnetcore.authentication.jwtbearer.8.0.4.nupkg.sha512",
     "C:\\Users\\angel\\.nuget\\packages\\microsoft.aspnetcore.openapi\\8.0.17\\microsoft.aspnetcore.openapi.8.0.17.nupkg.sha512",
     "C:\\Users\\angel\\.nuget\\packages\\microsoft.bcl.asyncinterfaces\\7.0.0\\microsoft.bcl.asyncinterfaces.7.0.0.nupkg.sha512",
@@ -54,6 +55,7 @@
     "C:\\Users\\angel\\.nuget\\packages\\microsoft.ml.cpumath\\4.0.2\\microsoft.ml.cpumath.4.0.2.nupkg.sha512",
     "C:\\Users\\angel\\.nuget\\packages\\microsoft.ml.dataview\\4.0.2\\microsoft.ml.dataview.4.0.2.nupkg.sha512",
     "C:\\Users\\angel\\.nuget\\packages\\microsoft.ml.fasttree\\4.0.2\\microsoft.ml.fasttree.4.0.2.nupkg.sha512",
+    "C:\\Users\\angel\\.nuget\\packages\\microsoft.ml.lightgbm\\4.0.2\\microsoft.ml.lightgbm.4.0.2.nupkg.sha512",
     "C:\\Users\\angel\\.nuget\\packages\\microsoft.openapi\\1.6.23\\microsoft.openapi.1.6.23.nupkg.sha512",
     "C:\\Users\\angel\\.nuget\\packages\\microsoft.sqlserver.server\\1.0.0\\microsoft.sqlserver.server.1.0.0.nupkg.sha512",
     "C:\\Users\\angel\\.nuget\\packages\\microsoft.win32.systemevents\\6.0.0\\microsoft.win32.systemevents.6.0.0.nupkg.sha512",
