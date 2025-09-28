@@ -35,21 +35,22 @@ namespace RiegoAPI.Controllers
             if (lecturas.Count == 0)
                 return NotFound("No hay datos de prueba disponibles.");
 
-            // Leer umbral desde threshold.json
-            float threshold = 0.3f;
-            string path = Path.Combine(_env.ContentRootPath, "metricas_modelo.json");
+            // 📊 Leer umbral desde metricas_modelo.json
+            float threshold = 0.85f; // valor por defecto
+            string path = Path.Combine(_env.ContentRootPath, "wwwroot", "data", "metricas_modelo.json");
 
             if (System.IO.File.Exists(path))
             {
                 try
                 {
                     var json = System.IO.File.ReadAllText(path);
-                    var config = JsonSerializer.Deserialize<ThresholdConfig>(json);
-                    if (config != null) threshold = config.Valor;
+                    using var doc = JsonDocument.Parse(json);
+                    if (doc.RootElement.TryGetProperty("threshold", out var prop))
+                        threshold = prop.GetSingle();
                 }
                 catch
                 {
-                    Console.WriteLine("⚠️ Error al leer el archivo threshold.json. Usando threshold por defecto.");
+                    Console.WriteLine("⚠️ Error al leer metricas_modelo.json. Usando threshold por defecto.");
                 }
             }
 
@@ -57,6 +58,7 @@ namespace RiegoAPI.Controllers
 
             foreach (var l in lecturas)
             {
+                // 🧠 Construimos el input EXACTO que espera el modelo
                 var input = new LecturaInput
                 {
                     HumedadSuelo = (float)l.HumedadSuelo,
@@ -64,12 +66,20 @@ namespace RiegoAPI.Controllers
                     Precipitacion = (float)l.Precipitacion,
                     Viento = (float)l.Viento,
                     RadiacionSolar = (float)l.RadiacionSolar,
-                    EtapaCultivo = l.EtapaCultivo,
-                    Cultivo = l.CultivoId.ToString(),
+
+                    // ✅ Nuevas columnas esperadas por el modelo
+                    Indice_Sequía = (float)(l.IndiceSequia ?? 0),
+                    pH_Suelo = (float)(l.pH_Suelo ?? 0),
+                    Materia_Organica = (float)(l.MateriaOrganica ?? 0),
+                    Metodo_Riego = l.MetodoRiego ?? "Desconocido",
+
+                    EtapaCultivo = l.EtapaCultivo ?? "Desconocido",
+                    Cultivo = l.Cultivo?.Nombre ?? "Desconocido",
                     Mes = l.Fecha.Month,
                     DiaDelAnio = l.Fecha.DayOfYear
                 };
 
+                // 📈 Predicción
                 var prediction = _predictionEngine.Predict(input);
                 bool predicho = prediction.Score >= threshold;
                 bool real = l.NecesitaRiego ?? false;
@@ -80,12 +90,14 @@ namespace RiegoAPI.Controllers
                 else tn++;
             }
 
+            // 📊 Cálculo de métricas
             int total = tp + tn + fp + fn;
             float accuracy = total > 0 ? (float)(tp + tn) / total : 0;
             float precision = (tp + fp) > 0 ? (float)tp / (tp + fp) : 0;
             float recall = (tp + fn) > 0 ? (float)tp / (tp + fn) : 0;
             float specificity = (tn + fp) > 0 ? (float)tn / (tn + fp) : 0;
             float f1 = (precision + recall) > 0 ? 2 * (precision * recall) / (precision + recall) : 0;
+            float auc = (recall + specificity) / 2;
 
             var resultado = new MetricasResultado
             {
@@ -94,14 +106,14 @@ namespace RiegoAPI.Controllers
                 Recall = recall,
                 Specificity = specificity,
                 F1 = f1,
-                Auc = (recall + specificity) / 2
+                Auc = auc
             };
 
             return Ok(resultado);
         }
     }
 
-    // Clase para leer threshold.json
+    // 📊 Configuración del threshold desde JSON
     public class ThresholdConfig
     {
         public float Valor { get; set; }
