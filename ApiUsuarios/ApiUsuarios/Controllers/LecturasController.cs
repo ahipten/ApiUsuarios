@@ -110,16 +110,22 @@ namespace Controllers
 
             var lectura = new Lectura
             {
-                SensorId        = dto.SensorId,
-                CultivoId       = dto.CultivoId,
-                Fecha           = dto.Fecha,
-                HumedadSuelo    = dto.HumedadSuelo,
-                Temperatura     = dto.Temperatura,
-                Precipitacion   = dto.Precipitacion,
-                Viento          = dto.Viento,
-                RadiacionSolar  = dto.RadiacionSolar,
-                EtapaCultivo    = dto.EtapaCultivo ?? "",
-                NecesitaRiego   = dto.NecesitaRiego ?? false
+                SensorId = dto.SensorId,
+                CultivoId = dto.CultivoId,
+                Fecha = dto.Fecha,
+                HumedadSuelo = dto.HumedadSuelo,
+                Temperatura = dto.Temperatura,
+                Precipitacion = dto.Precipitacion,
+                Viento = dto.Viento,
+                RadiacionSolar = dto.RadiacionSolar,
+                EtapaCultivo = dto.EtapaCultivo ?? "",
+                NecesitaRiego = dto.NecesitaRiego ?? false,
+                Lat = dto.Lat,
+                Lng = dto.Lng,
+                IndiceSequia = dto.IndiceSequia,
+                MateriaOrganica = dto.MateriaOrganica,
+                MetodoRiego = dto.MetodoRiego ?? "",
+                pH_Suelo = dto.pH_Suelo
             };
 
             _context.Lecturas.Add(lectura);
@@ -211,7 +217,13 @@ namespace Controllers
                             Viento = r.Viento,
                             RadiacionSolar = r.RadiacionSolar,
                             EtapaCultivo = r.EtapaCultivo ?? "",
-                            NecesitaRiego = r.NecesitaRiego
+                            NecesitaRiego = r.NecesitaRiego,
+                            Lat = r.Lat,
+                            Lng = r.Lng,
+                            IndiceSequia = r.IndiceSequia,
+                            MateriaOrganica = r.MateriaOrganica,
+                            MetodoRiego = r.MetodoRiego ?? "",
+                            pH_Suelo = r.pH_Suelo
                         };
 
                         nuevas.Add(lectura);

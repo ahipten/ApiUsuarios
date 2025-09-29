@@ -37,7 +37,7 @@ namespace RiegoAPI.Controllers
 
             // 📊 Leer umbral desde metricas_modelo.json
             float threshold = 0.85f; // valor por defecto
-            string path = Path.Combine(_env.ContentRootPath, "wwwroot", "data", "metricas_modelo.json");
+            string path = Path.Combine(_env.ContentRootPath, "Data", "metricas_modelo.json");
 
             if (System.IO.File.Exists(path))
             {
@@ -68,9 +68,9 @@ namespace RiegoAPI.Controllers
                     RadiacionSolar = (float)l.RadiacionSolar,
 
                     // ✅ Nuevas columnas esperadas por el modelo
-                    Indice_Sequía = (float)(l.IndiceSequia ?? 0),
-                    pH_Suelo = (float)(l.pH_Suelo ?? 0),
-                    Materia_Organica = (float)(l.MateriaOrganica ?? 0),
+                    Indice_Sequía = (float)l.IndiceSequia ,
+                    pH_Suelo = (float)l.pH_Suelo ,
+                    Materia_Organica = (float)l.MateriaOrganica,
                     Metodo_Riego = l.MetodoRiego ?? "Desconocido",
 
                     EtapaCultivo = l.EtapaCultivo ?? "Desconocido",

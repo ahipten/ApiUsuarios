@@ -18,5 +18,13 @@ namespace Models
         public string? EtapaCultivo { get; set; }
         [TypeConverter(typeof(BoolFromIntConverter))]
         public bool NecesitaRiego { get; set; }
+
+        // 🔹 Nuevos campos
+        public double Lat { get; set; }
+        public double Lng { get; set; }
+        public double IndiceSequia { get; set; }
+        public double MateriaOrganica { get; set; }
+        public string MetodoRiego { get; set; } = "";
+        public double pH_Suelo { get; set; }
     }
 }

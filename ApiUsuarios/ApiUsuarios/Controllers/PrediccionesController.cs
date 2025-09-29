@@ -77,7 +77,11 @@ namespace Controllers
                     EtapaCultivo = lectura.EtapaCultivo,
                     Cultivo = await ObtenerNombreCultivo(lectura.CultivoId),
                     Mes = (float)lectura.Fecha.Month,
-                    DiaDelAnio = (float)lectura.Fecha.DayOfYear
+                    DiaDelAnio = (float)lectura.Fecha.DayOfYear,
+                    Indice_Sequía = (float)lectura.IndiceSequia,
+                    Materia_Organica = (float)lectura.MateriaOrganica,
+                    Metodo_Riego = lectura.MetodoRiego,
+                    pH_Suelo = (float)lectura.pH_Suelo
                 };
 
                 var prediction = _predEnginePool.Predict(input);
@@ -93,7 +97,11 @@ namespace Controllers
                     cultivo = await ObtenerNombreCultivo(lectura.CultivoId),
                     etapa = lectura.EtapaCultivo,
                     fecha = lectura.Fecha.ToString("yyyy-MM-dd"),
-                    explicacion = ObtenerExplicacionBasadaEn(input)
+                    explicacion = ObtenerExplicacionBasadaEn(input),
+                    indice_sequia = lectura.IndiceSequia,
+                    materia_organica = lectura.MateriaOrganica,
+                    metodo_riego = lectura.MetodoRiego,
+                    ph_suelo = lectura.pH_Suelo
                 });
             }
 

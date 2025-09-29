@@ -298,3 +298,5 @@ E:\backend\ApiUsuarios\ApiUsuarios\ApiUsuarios\bin\Debug\net8.0\runtimes\linux-x
 E:\backend\ApiUsuarios\ApiUsuarios\ApiUsuarios\bin\Debug\net8.0\runtimes\osx-x64\native\lib_lightgbm.dylib
 E:\backend\ApiUsuarios\ApiUsuarios\ApiUsuarios\bin\Debug\net8.0\runtimes\win-x64\native\lib_lightgbm.dll
 E:\backend\ApiUsuarios\ApiUsuarios\ApiUsuarios\bin\Debug\net8.0\runtimes\win-x64\native\lightgbm.exe
+E:\backend\ApiUsuarios\ApiUsuarios\ApiUsuarios\bin\Debug\net8.0\Data\metricas_modelo.json
+E:\backend\ApiUsuarios\ApiUsuarios\ApiUsuarios\bin\Debug\net8.0\Data\metricas_todos.json
