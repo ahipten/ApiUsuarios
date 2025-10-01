@@ -7,6 +7,8 @@ using CsvHelper;
 using CsvHelper.Configuration;
 using System.Globalization;
 using CsvHelper.TypeConversion;
+using System.Text;
+
 
 namespace Controllers
 {
@@ -160,34 +162,57 @@ namespace Controllers
             if (file == null || file.File.Length == 0)
                 return BadRequest("Archivo CSV no válido.");
 
+            // 🔧 Diccionario de cultivos sin tildes
             var cultivoMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
             {
-                { "Maíz", 1 }, { "Maiz", 1 },
-                { "Palta", 2 },
-                { "Espárrago", 3 }, { "Esparrago", 3 },
-                { "Mango", 4 }
+                { "maiz", 1 },
+                { "palta", 2 },
+                { "esparrago", 3 },
+                { "mango", 4 }
             };
+
+            // 🔧 Función para normalizar texto (quita tildes y pasa a minúsculas)
+            string NormalizeText(string input)
+            {
+                return new string(
+                    (input ?? "").Normalize(NormalizationForm.FormD)
+                                .Where(c => CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
+                                .ToArray()
+                ).ToLowerInvariant();
+            }
 
             var nuevas = new List<Lectura>();
 
             try
             {
-                using var reader = new StreamReader(file.File.OpenReadStream());
-                var config = new CsvConfiguration(CultureInfo.InvariantCulture)
+                // 🔧 Intentamos primero con UTF-8, si falla usamos Latin-1
+                StreamReader reader;
+                try
+                {
+                    reader = new StreamReader(file.File.OpenReadStream(), Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+                    // Probar lectura para confirmar UTF-8 válido
+                    reader.ReadLine();
+                    reader.BaseStream.Position = 0; // reset
+                    reader.DiscardBufferedData();
+                }
+                catch
+                {
+                    // Fallback a ISO-8859-1
+                    reader = new StreamReader(file.File.OpenReadStream(), Encoding.GetEncoding("ISO-8859-1"));
+                }
+
+                var config = new CsvConfiguration(new CultureInfo("es-PE"))
                 {
                     HasHeaderRecord = true,
                     Delimiter = ";",
                     BadDataFound = null,
                     HeaderValidated = null,
+                    TrimOptions = TrimOptions.Trim,
                     MissingFieldFound = null
                 };
 
                 using var csv = new CsvReader(reader, config);
-
-                // 👇 Agregamos soporte para fechas en formato dd/MM/yyyy
-                //var dateOptions = new TypeConverterOptions { Formats = new[] { "d/M/yyyy", "dd/MM/yyyy", "d/MM/yyyy", "dd/M/yyyy" } };
-                //csv.Context.TypeConverterOptionsCache.AddOptions<DateTime>(dateOptions);
-
+                csv.Context.RegisterClassMap<LecturaCsvMap>();
                 var records = csv.GetRecords<LecturaCsvRow>().ToList();
                 var idsSensores = await _context.Sensores.Select(s => s.Id).ToListAsync();
                 if (idsSensores.Count == 0) return BadRequest("No hay sensores registrados.");
@@ -199,7 +224,8 @@ namespace Controllers
                     {
                         int sensorId = r.SensorId ?? idsSensores[_rand.Next(idsSensores.Count)];
 
-                        if (!cultivoMap.TryGetValue(r.Cultivo ?? "", out int cultivoId))
+                        string cultivoKey = NormalizeText(r.Cultivo ?? "");
+                        if (!cultivoMap.TryGetValue(cultivoKey, out int cultivoId))
                         {
                             Console.WriteLine($"Fila {fila}: Cultivo '{r.Cultivo}' no reconocido. Se omitirá.");
                             fila++;
@@ -247,8 +273,6 @@ namespace Controllers
                 return StatusCode(500, $"Error al procesar CSV: {inner}");
             }
         }
-
-
 
     }
 

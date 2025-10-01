@@ -14,16 +14,15 @@ namespace Models
         public double Precipitacion { get; set; }
         public double Viento { get; set; }
         public double RadiacionSolar { get; set; }
-            // ✅ Nuevos campos si aún no existen:
-        public double IndiceSequia { get; set; }
-        public double pH_Suelo { get; set; }
-        public double MateriaOrganica { get; set; }
-        public string MetodoRiego { get; set; } = "";
+        // ✅ Nuevos campos si aún no existen:
         public string EtapaCultivo { get; set; } = "";
         public bool? NecesitaRiego { get; set; }
-
-        // 🔽 Agrega esto
+         // 🔽 Agrega esto
         public double? Lat { get; set; }
-        public double? Lng { get; set; }
+        public double? Lng { get; set; }    
+        public double IndiceSequia { get; set; }
+        public double MateriaOrganica { get; set; }
+        public string MetodoRiego { get; set; } = "";
+        public double pH_Suelo { get; set; }
     }
 }
