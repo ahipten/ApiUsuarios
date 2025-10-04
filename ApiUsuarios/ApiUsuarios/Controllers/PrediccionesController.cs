@@ -81,18 +81,28 @@ namespace Controllers
                     Indice_Sequía = (float)lectura.IndiceSequia,
                     Materia_Organica = (float)lectura.MateriaOrganica,
                     Metodo_Riego = lectura.MetodoRiego,
-                    pH_Suelo = (float)lectura.pH_Suelo
+                    pH_Suelo = (float)lectura.pH_Suelo,
+                    Interaccion_HT = (float)(lectura.HumedadSuelo * lectura.Temperatura),
+                    Balance_Agua = (float)(lectura.Precipitacion - (0.0023 * (lectura.Temperatura + 17.8) * Math.Sqrt(lectura.RadiacionSolar))),
+                    Sequía_MO = (float)(lectura.IndiceSequia * lectura.MateriaOrganica),
+                    Latitud = (float)lectura.Lat,
+                    Longitud = (float)lectura.Lng
                 };
 
                 var prediction = _predEnginePool.Predict(input);
                 var threshold = ObtenerUmbralDesdeJson();
                 var necesitaRiego = prediction.Score >= threshold;
 
+                double consumoPromedio = (CONSUMO_MIN_M3 + CONSUMO_MAX_M3) / 2.0;
+                double litrosEstimados = necesitaRiego ? consumoPromedio : 0;
+                double costoEstimado = litrosEstimados * COSTO_POR_M3;
+
                 resultados.Add(new
                 {
                     necesitaRiego,
                     probabilidad = Math.Round(prediction.Score * 100, 2),
-                    costo_estimado = necesitaRiego ? 98990 : 0,
+                    litros_estimados = Math.Round(litrosEstimados, 2),   // 🔹 nuevo campo en m³
+                    costo_estimado = Math.Round(costoEstimado, 2),       // 🔹 costo en soles
                     temporada = DeterminarTemporada(await ObtenerNombreCultivo(lectura.CultivoId), lectura.Fecha),
                     cultivo = await ObtenerNombreCultivo(lectura.CultivoId),
                     etapa = lectura.EtapaCultivo,
@@ -101,13 +111,37 @@ namespace Controllers
                     indice_sequia = lectura.IndiceSequia,
                     materia_organica = lectura.MateriaOrganica,
                     metodo_riego = lectura.MetodoRiego,
-                    ph_suelo = lectura.pH_Suelo
+                    ph_suelo = lectura.pH_Suelo,
+                    interaccion_ht = input.Interaccion_HT,
+                    balance_agua = input.Balance_Agua,
+                    sequia_mo = input.Sequía_MO,
+                    Latitud = lectura.Lat,
+                    Longitud = lectura.Lng
                 });
             }
 
             return Ok(resultados);
         }
+        [HttpGet("importancia-caracteristicas")]
+        public IActionResult GetImportanciaCaracteristicas()
+        {
+            try
+            {
+                // Ruta al archivo dentro de wwwroot/data
+                var filePath = Path.Combine(Directory.GetCurrentDirectory(), "Data", "importancia_caracteristicas.json");
 
+                if (!System.IO.File.Exists(filePath))
+                    return NotFound(new { message = "Archivo de importancia de características no encontrado." });
+
+                var json = System.IO.File.ReadAllText(filePath);
+
+                return Content(json, "application/json");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al leer el archivo de importancia de características.", error = ex.Message });
+            }
+        }
         // 🔧 Lógica de predicción con lectura de umbral desde JSON
         private object ConstruirRespuesta(LecturaInput input, DateTime fecha)
         {
@@ -135,7 +169,7 @@ namespace Controllers
         // 🔍 Lector del umbral dinámico desde el archivo JSON
         private float ObtenerUmbralDesdeJson()
         {
-            var ruta = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "data", "metricas_modelo.json");
+            var ruta = Path.Combine(Directory.GetCurrentDirectory(), "Data", "metricas_modelo.json");
 
             if (!System.IO.File.Exists(ruta))
                 return 0.5f; // Umbral por defecto

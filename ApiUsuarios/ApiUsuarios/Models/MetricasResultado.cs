@@ -1,6 +1,7 @@
 
 public class MetricasResultado
 {
+    public string? Modelo { get; set; }
     public float Accuracy { get; set; }
     public float Precision { get; set; }
     public float Recall { get; set; }

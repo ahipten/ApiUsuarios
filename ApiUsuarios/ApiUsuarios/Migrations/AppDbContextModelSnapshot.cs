@@ -50,9 +50,15 @@ namespace ApiUsuarios.Migrations
                     b.Property<int>("CultivoId")
                         .HasColumnType("int");
 
+                    b.Property<float>("DeficitHidrico")
+                        .HasColumnType("real");
+
                     b.Property<string>("EtapaCultivo")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<float>("Evapotranspiracion")
+                        .HasColumnType("real");
 
                     b.Property<DateTime>("Fecha")
                         .HasColumnType("datetime2");
@@ -60,19 +66,23 @@ namespace ApiUsuarios.Migrations
                     b.Property<double>("HumedadSuelo")
                         .HasColumnType("float");
 
-                    b.Property<double?>("IndiceSequia")
+                    b.Property<float>("IndiceEstres")
+                        .HasColumnType("real");
+
+                    b.Property<double>("IndiceSequia")
                         .HasColumnType("float");
 
-                    b.Property<double?>("Lat")
+                    b.Property<double>("Lat")
                         .HasColumnType("float");
 
-                    b.Property<double?>("Lng")
+                    b.Property<double>("Lng")
                         .HasColumnType("float");
 
-                    b.Property<double?>("MateriaOrganica")
+                    b.Property<double>("MateriaOrganica")
                         .HasColumnType("float");
 
                     b.Property<string>("MetodoRiego")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<bool?>("NecesitaRiego")
@@ -93,7 +103,7 @@ namespace ApiUsuarios.Migrations
                     b.Property<double>("Viento")
                         .HasColumnType("float");
 
-                    b.Property<double?>("pH_Suelo")
+                    b.Property<double>("pH_Suelo")
                         .HasColumnType("float");
 
                     b.HasKey("Id");

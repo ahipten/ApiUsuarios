@@ -26,6 +26,9 @@ namespace Models
             Map(m => m.MateriaOrganica).Name("MateriaOrganica");
             Map(m => m.MetodoRiego).Name("MetodoRiego");
             Map(m => m.pH_Suelo).Name("pH_Suelo");
+            Map(m => m.IndiceEstres).Name("IndiceEstres");
+            Map(m => m.DeficitHidrico).Name("DeficitHidrico");
+            Map(m => m.Evapotranspiracion).Name("Evapotranspiracion");
 
             // 🔑 Aquí la corrección importante
             Map(m => m.Lat).Name("Latitud");

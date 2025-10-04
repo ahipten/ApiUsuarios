@@ -1,0 +1,122 @@
+[
+  {
+    "Feature": "HumedadSuelo",
+    "DeltaAUC": -0.01657348056513408
+  },
+  {
+    "Feature": "Temperatura",
+    "DeltaAUC": -0.02138448946677385
+  },
+  {
+    "Feature": "Precipitacion",
+    "DeltaAUC": -0.1359863621256766
+  },
+  {
+    "Feature": "Viento",
+    "DeltaAUC": -0.016346044079357136
+  },
+  {
+    "Feature": "RadiacionSolar",
+    "DeltaAUC": -0.021632187604950337
+  },
+  {
+    "Feature": "Indice_Sequ\u00EDa",
+    "DeltaAUC": -0.011488308343685194
+  },
+  {
+    "Feature": "pH_Suelo",
+    "DeltaAUC": -0.019924030587810115
+  },
+  {
+    "Feature": "Materia_Organica",
+    "DeltaAUC": -0.01987858570996126
+  },
+  {
+    "Feature": "IndiceEstres",
+    "DeltaAUC": -0.027812230763104684
+  },
+  {
+    "Feature": "DeficitHidrico",
+    "DeltaAUC": -0.021615972690477325
+  },
+  {
+    "Feature": "Evapotranspiracion",
+    "DeltaAUC": -0.030279938850517607
+  },
+  {
+    "Feature": "Mes",
+    "DeltaAUC": -0.0004325933324977882
+  },
+  {
+    "Feature": "DiaDelAnio",
+    "DeltaAUC": -0.01388405107682289
+  },
+  {
+    "Feature": "Interaccion_HT",
+    "DeltaAUC": -0.018562171072584954
+  },
+  {
+    "Feature": "Balance_Agua",
+    "DeltaAUC": -0.05744948512042436
+  },
+  {
+    "Feature": "Sequ\u00EDa_MO",
+    "DeltaAUC": -0.016699315200889298
+  },
+  {
+    "Feature": "EtapaCultivoEncoded.Cosecha",
+    "DeltaAUC": -0.002211220852261331
+  },
+  {
+    "Feature": "EtapaCultivoEncoded.Crecimiento",
+    "DeltaAUC": -0.0014834242155131738
+  },
+  {
+    "Feature": "EtapaCultivoEncoded.Floraci\u00F3n",
+    "DeltaAUC": -0.001877400084457248
+  },
+  {
+    "Feature": "EtapaCultivoEncoded.Siembra",
+    "DeltaAUC": -0.0017751243107385628
+  },
+  {
+    "Feature": "CultivoEncoded.3",
+    "DeltaAUC": -0.0011720548580449464
+  },
+  {
+    "Feature": "CultivoEncoded.1",
+    "DeltaAUC": -0.0008843030633982618
+  },
+  {
+    "Feature": "CultivoEncoded.4",
+    "DeltaAUC": -0.0006567757091425763
+  },
+  {
+    "Feature": "CultivoEncoded.2",
+    "DeltaAUC": -9.494490347894402E-05
+  },
+  {
+    "Feature": "MetodoRiegoEncoded.Manual",
+    "DeltaAUC": -0.001795829835263052
+  },
+  {
+    "Feature": "MetodoRiegoEncoded.Aspersi\u00F3n",
+    "DeltaAUC": -0.0008142448959451709
+  },
+  {
+    "Feature": "MetodoRiegoEncoded.Surcos",
+    "DeltaAUC": -0.007843662258213202
+  },
+  {
+    "Feature": "MetodoRiegoEncoded.Goteo",
+    "DeltaAUC": -0.0013564176244725834
+  },
+  {
+    "Feature": "Latitud",
+    "DeltaAUC": -0.02592616482809129
+  },
+  {
+    "Feature": "Longitud",
+    "DeltaAUC": -0.018930408833874424
+  }
+]

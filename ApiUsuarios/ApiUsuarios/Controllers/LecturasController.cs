@@ -127,7 +127,10 @@ namespace Controllers
                 IndiceSequia = dto.IndiceSequia,
                 MateriaOrganica = dto.MateriaOrganica,
                 MetodoRiego = dto.MetodoRiego ?? "",
-                pH_Suelo = dto.pH_Suelo
+                pH_Suelo = dto.pH_Suelo,
+                IndiceEstres = dto.IndiceEstres,
+                DeficitHidrico = dto.DeficitHidrico,
+                Evapotranspiracion = dto.Evapotranspiracion
             };
 
             _context.Lecturas.Add(lectura);
@@ -249,7 +252,10 @@ namespace Controllers
                             IndiceSequia = r.IndiceSequia,
                             MateriaOrganica = r.MateriaOrganica,
                             MetodoRiego = r.MetodoRiego ?? "",
-                            pH_Suelo = r.pH_Suelo
+                            pH_Suelo = r.pH_Suelo,
+                            IndiceEstres = r.IndiceEstres,
+                            DeficitHidrico = r.DeficitHidrico,
+                            Evapotranspiracion = r.Evapotranspiracion
                         };
 
                         nuevas.Add(lectura);
