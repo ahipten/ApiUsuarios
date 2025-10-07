@@ -9,35 +9,49 @@ using BCrypt.Net;
 using Microsoft.Extensions.ML;
 using Models;
 using Microsoft.OpenApi.Models;
-using Swashbuckle.AspNetCore.SwaggerGen;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ============================================================
 // 🔗 SQL Server
+// ============================================================
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// 🔮 ML.NET modelo predictivo
+// ============================================================
+// 🔮 ML.NET Modelo predictivo
+// ============================================================
 builder.Services.AddPredictionEnginePool<LecturaInput, LecturaPrediction>()
     .FromFile("MLModels/ModeloRiego.zip", watchForChanges: true);
 
-// ✅ Controladores con IgnoreCycles (evita errores de referencias circulares al serializar JSON)
+// ============================================================
+// ✅ Controladores con IgnoreCycles (evita referencias circulares)
+// ============================================================
 builder.Services.AddControllers()
     .AddJsonOptions(opts =>
     {
         opts.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
     });
 
-// 🌍 CORS para permitir acceso desde React u otro frontend
+// ============================================================
+// 🌍 CORS — Permitir acceso desde React (localhost y producción)
+// ============================================================
 builder.Services.AddCors(options =>
 {
-    options.AddDefaultPolicy(policy =>
-        policy.WithOrigins("http://localhost:3000")
-              .AllowAnyHeader()
-              .AllowAnyMethod());
+    options.AddPolicy("AllowFrontend", policy =>
+        policy.WithOrigins(
+                "http://localhost:5173",   // Vite o CoreUI React
+                "http://localhost:3000",   // CRA u otros
+                "https://casmainteligente.pe" // Producción (ajústalo a tu dominio)
+            )
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials());
 });
 
-// 🔐 JWT Config
+// ============================================================
+// 🔐 JWT Configuración
+// ============================================================
 var jwt = builder.Configuration.GetSection("Jwt");
 Console.WriteLine($"👉 JWT SETTINGS | Issuer: {jwt["Issuer"]} | Audience: {jwt["Audience"]} | Key (len): {jwt["Key"]?.Length}");
 
@@ -51,14 +65,14 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         options.SaveToken = true;
         options.TokenValidationParameters = new TokenValidationParameters
         {
-            ValidateIssuer           = true,
-            ValidateAudience         = true,
-            ValidateLifetime         = true,
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer              = jwt["Issuer"],
-            ValidAudience            = jwt["Audience"],
-            IssuerSigningKey         = new SymmetricSecurityKey(key),
-            RoleClaimType            = ClaimTypes.Role
+            ValidIssuer = jwt["Issuer"],
+            ValidAudience = jwt["Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(key),
+            RoleClaimType = ClaimTypes.Role
         };
 
         options.Events = new JwtBearerEvents
@@ -89,12 +103,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
+// ============================================================
 // 🌐 Swagger con soporte para carga de archivos
+// ============================================================
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
     options.SupportNonNullableReferenceTypes();
-  //  options.OperationFilter<FileUploadOperation>(); // ✅ Permite manejar IFormFile en Swagger
 
     options.SwaggerDoc("v1", new OpenApiInfo
     {
@@ -102,25 +117,87 @@ builder.Services.AddSwaggerGen(options =>
         Version = "v1",
         Description = "API para gestión y predicción de riego agrícola."
     });
-});
 
+    // 🔒 Permitir autenticación con JWT en Swagger
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        In = ParameterLocation.Header,
+        Description = "Introduce el token JWT con el prefijo 'Bearer '",
+        Name = "Authorization",
+        Type = SecuritySchemeType.ApiKey
+    });
+
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
+// ============================================================
+// ⚙️ Aumentar límite de carga de archivos grandes (hasta 500 MB)
+// ============================================================
+builder.WebHost.ConfigureKestrel(serverOptions =>
+{
+    serverOptions.Limits.MaxRequestBodySize = 524288000; // 500 MB
+});
 var app = builder.Build();
 
-// Middleware de documentación
+// ============================================================
+// 📘 Swagger Middleware
+// ============================================================
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "Riego API V1");
 });
 
-app.UseCors();
+// ============================================================
+// 🛰 Middleware CORS + Preflight
+// ============================================================
+app.UseCors("AllowFrontend");
 
+app.Use(async (context, next) =>
+{
+    if (context.Request.Method == "OPTIONS")
+    {
+        var origin = context.Request.Headers["Origin"];
+        if (!string.IsNullOrEmpty(origin))
+        {
+            context.Response.Headers["Access-Control-Allow-Origin"] = origin;
+        }
+
+        context.Response.Headers.Append("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+        context.Response.Headers.Append("Access-Control-Allow-Headers", "Content-Type, Authorization");
+        context.Response.Headers.Append("Access-Control-Allow-Credentials", "true");
+
+        context.Response.StatusCode = 200;
+        await context.Response.CompleteAsync();
+        return;
+    }
+
+    await next();
+});
+
+
+// ============================================================
+// 🔑 Autenticación y autorización
+// ============================================================
 app.UseAuthentication();
 app.UseAuthorization();
 
+// ============================================================
+// 🚀 Controladores
+// ============================================================
 app.MapControllers();
 
-// 🔄 Migración automática de contraseñas (una sola vez al iniciar)
+// ============================================================
+// 🧩 Migración automática de contraseñas y validación de modelo ML
+// ============================================================
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -154,8 +231,7 @@ using (var scope = app.Services.CreateScope())
             Viento = 2,
             RadiacionSolar = 100,
             EtapaCultivo = "Crecimiento",
-            Cultivo = "Maiz",
-            //Fecha = DateTime.Today
+            Cultivo = "Maiz"
         });
 
         Console.WriteLine($"✅ Modelo ML.NET cargado correctamente. ¿Necesita riego?: {resultado.NecesitaRiego}");

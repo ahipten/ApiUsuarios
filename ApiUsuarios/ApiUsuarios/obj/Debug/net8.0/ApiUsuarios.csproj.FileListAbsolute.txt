@@ -301,3 +301,4 @@ E:\backend\ApiUsuarios\ApiUsuarios\ApiUsuarios\bin\Debug\net8.0\runtimes\win-x64
 E:\backend\ApiUsuarios\ApiUsuarios\ApiUsuarios\bin\Debug\net8.0\Data\metricas_modelo.json
 E:\backend\ApiUsuarios\ApiUsuarios\ApiUsuarios\bin\Debug\net8.0\Data\metricas_todos.json
 E:\backend\ApiUsuarios\ApiUsuarios\ApiUsuarios\bin\Debug\net8.0\Data\importancia_caracteristicas.json
+E:\backend\ApiUsuarios\ApiUsuarios\ApiUsuarios\bin\Debug\net8.0\Data\metricas_por_threshold.json

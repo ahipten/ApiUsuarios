@@ -57,10 +57,13 @@ namespace Controllers
         public async Task<IActionResult> PredecirParaTodo2024()
         {
             var fechaInicio = new DateTime(2024, 1, 1);
-            var fechaFin = new DateTime(2024, 12, 31);
+            var fechaFin = new DateTime(2025, 12, 31);
 
             var lecturas = await _context.Lecturas.Include(l => l.Cultivo)
                 .Where(l => l.Fecha >= fechaInicio && l.Fecha <= fechaFin)
+ //               .OrderBy(l => l.Fecha)
+ //               .Skip(10000)
+ //               .Take(10000)
                 .ToListAsync();
 
             var resultados = new List<object>();
