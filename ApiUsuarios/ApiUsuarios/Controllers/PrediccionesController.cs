@@ -56,7 +56,7 @@ namespace Controllers
         [HttpGet("regar-todos")]
         public async Task<IActionResult> PredecirParaTodo2024()
         {
-            var fechaInicio = new DateTime(2024, 1, 1);
+            var fechaInicio = new DateTime(2025, 1, 1);
             var fechaFin = new DateTime(2025, 12, 31);
 
             var lecturas = await _context.Lecturas.Include(l => l.Cultivo)

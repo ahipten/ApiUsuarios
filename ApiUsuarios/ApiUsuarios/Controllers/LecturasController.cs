@@ -9,6 +9,8 @@ using System.Globalization;
 using CsvHelper.TypeConversion;
 using System.Text;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
+using System.Text.Json;
 
 namespace Controllers
 {
@@ -129,6 +131,50 @@ namespace Controllers
                 });
             }
         }
+        // =====================================================
+        // GET: api/lecturas/geo-lecturas-stream
+        // Devuelve lecturas en formato NDJSON (streaming eficiente)
+        // =====================================================
+        [HttpGet("geo-lecturas-stream")]
+        public async Task GetGeoLecturasStream(CancellationToken cancellationToken)
+        {
+            Response.ContentType = "application/x-ndjson; charset=utf-8";
+
+            var options = new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                WriteIndented = false
+            };
+
+            var query = _context.Lecturas
+                .AsNoTracking()
+                .Include(l => l.Cultivo)
+                .Where(l => l.Lat != 0 && l.Lng != 0)
+                .OrderByDescending(l => l.Fecha)
+                .Select(l => new
+                {
+                    lat = l.Lat,
+                    lng = l.Lng,
+                    intensidad = l.HumedadSuelo < 30 ? 1 :
+                                l.Viento > 20 ? 0.8 :
+                                l.Precipitacion > 50 ? 0.6 : 0.3,
+                    fecha = l.Fecha,
+                    cultivo = l.Cultivo != null ? l.Cultivo.Nombre : "Desconocido",
+                    costoTradicional = 18000 * 1.24,
+                    costoEstimado = 18000 * 1.24 * 0.7,
+                    ahorroSimulado = (18000 * 1.24) - (18000 * 1.24 * 0.7)
+                })
+                .AsAsyncEnumerable();
+
+            await foreach (var item in query.WithCancellation(cancellationToken))
+            {
+                var json = JsonSerializer.Serialize(item, options);
+                var line = Encoding.UTF8.GetBytes(json + "\n");
+                await Response.Body.WriteAsync(line, 0, line.Length, cancellationToken);
+                await Response.Body.FlushAsync(cancellationToken);
+            }
+        }
+
 
         // =====================================================
         // GET: api/lecturas/{id}
