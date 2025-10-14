@@ -4,6 +4,8 @@ using Microsoft.Extensions.ML;
 using Models;
 using Data;
 using System.Text.Json;
+using System.Globalization;
+using System.Text;
 
 namespace Controllers
 {
@@ -24,6 +26,9 @@ namespace Controllers
             _predEnginePool = predEnginePool;
         }
 
+        // =========================================================
+        // 🔹 REGAR AVANZADO (POR ID)
+        // =========================================================
         [HttpGet("regar-avanzado/{id}")]
         public async Task<IActionResult> PredecirDesdeBD(int id)
         {
@@ -46,6 +51,9 @@ namespace Controllers
             return Ok(ConstruirRespuesta(input, lectura.Fecha));
         }
 
+        // =========================================================
+        // 🔹 REGAR AVANZADO (POST)
+        // =========================================================
         [HttpPost("regar-avanzado")]
         public IActionResult PredecirDesdeInput([FromBody] LecturaInput input)
         {
@@ -53,6 +61,9 @@ namespace Controllers
             return Ok(ConstruirRespuesta(input, DateTime.Now));
         }
 
+        // =========================================================
+        // 🔹 REGAR TODOS
+        // =========================================================
         [HttpGet("regar-todos")]
         public async Task<IActionResult> PredecirParaTodo2024()
         {
@@ -61,9 +72,6 @@ namespace Controllers
 
             var lecturas = await _context.Lecturas.Include(l => l.Cultivo)
                 .Where(l => l.Fecha >= fechaInicio && l.Fecha <= fechaFin)
- //               .OrderBy(l => l.Fecha)
- //               .Skip(10000)
- //               .Take(10000)
                 .ToListAsync();
 
             var resultados = new List<object>();
@@ -104,40 +112,33 @@ namespace Controllers
                 {
                     necesitaRiego,
                     probabilidad = Math.Round(prediction.Score * 100, 2),
-                    litros_estimados = Math.Round(litrosEstimados, 2),   // 🔹 nuevo campo en m³
-                    costo_estimado = Math.Round(costoEstimado, 2),       // 🔹 costo en soles
+                    litros_estimados = Math.Round(litrosEstimados, 2),
+                    costo_estimado = Math.Round(costoEstimado, 2),
                     temporada = DeterminarTemporada(await ObtenerNombreCultivo(lectura.CultivoId), lectura.Fecha),
                     cultivo = await ObtenerNombreCultivo(lectura.CultivoId),
                     etapa = lectura.EtapaCultivo,
                     fecha = lectura.Fecha.ToString("yyyy-MM-dd"),
-                    explicacion = ObtenerExplicacionBasadaEn(input),
-                    indice_sequia = lectura.IndiceSequia,
-                    materia_organica = lectura.MateriaOrganica,
-                    metodo_riego = lectura.MetodoRiego,
-                    ph_suelo = lectura.pH_Suelo,
-                    interaccion_ht = input.Interaccion_HT,
-                    balance_agua = input.Balance_Agua,
-                    sequia_mo = input.Sequía_MO,
-                    Latitud = lectura.Lat,
-                    Longitud = lectura.Lng
+                    explicacion = ObtenerExplicacionBasadaEn(input)
                 });
             }
 
             return Ok(resultados);
         }
+
+        // =========================================================
+        // 🔹 IMPORTANCIA DE CARACTERÍSTICAS
+        // =========================================================
         [HttpGet("importancia-caracteristicas")]
         public IActionResult GetImportanciaCaracteristicas()
         {
             try
             {
-                // Ruta al archivo dentro de wwwroot/data
                 var filePath = Path.Combine(Directory.GetCurrentDirectory(), "Data", "importancia_caracteristicas.json");
 
                 if (!System.IO.File.Exists(filePath))
                     return NotFound(new { message = "Archivo de importancia de características no encontrado." });
 
                 var json = System.IO.File.ReadAllText(filePath);
-
                 return Content(json, "application/json");
             }
             catch (Exception ex)
@@ -145,7 +146,116 @@ namespace Controllers
                 return StatusCode(500, new { message = "Error al leer el archivo de importancia de características.", error = ex.Message });
             }
         }
-        // 🔧 Lógica de predicción con lectura de umbral desde JSON
+
+        // =========================================================
+        // 🔹 RECOMENDACIÓN POR CULTIVO
+        // =========================================================
+        [HttpGet("recomendacion")]
+        public async Task<IActionResult> ObtenerRecomendacionPorCultivo([FromQuery] string cultivo)
+        {
+            if (string.IsNullOrWhiteSpace(cultivo))
+                return BadRequest(new { mensaje = "Debe especificar un cultivo." });
+
+            // ✅ Normalizar texto: quitar tildes y pasar a minúsculas
+            string cultivoNormalizado = new string(cultivo
+                .Normalize(NormalizationForm.FormD)
+                .Where(c => CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
+                .ToArray())
+                .ToLower();
+
+            // 📘 Buscar cultivo en BD (ignorando tildes y mayúsculas)
+            var cultivos = await _context.Cultivos.ToListAsync();
+
+            var cultivoBD = cultivos.FirstOrDefault(c =>
+            {
+                string nombreNormalizado = new string(c.Nombre
+                    .Normalize(NormalizationForm.FormD)
+                    .Where(ch => CharUnicodeInfo.GetUnicodeCategory(ch) != UnicodeCategory.NonSpacingMark)
+                    .ToArray())
+                    .ToLower();
+
+                return nombreNormalizado == cultivoNormalizado;
+            });
+
+            if (cultivoBD == null)
+                return NotFound(new { mensaje = $"No se encontró el cultivo '{cultivo}'." });
+
+            // 🔹 Parámetros base de riego (todas las claves en minúsculas y sin tildes)
+            var parametros = new Dictionary<string, (double LaminaNeta, double Eficiencia, string Metodo)>
+            {
+                ["maiz"] = (45.0, 0.90, "Goteo"),
+                ["palta"] = (35.0, 0.85, "Aspersión"),
+                ["platano"] = (70.0, 0.75, "Inundación"),
+                ["esparrago"] = (40.0, 0.88, "Goteo"),
+                ["mango"] = (50.0, 0.87, "Goteo")
+            };
+
+            if (!parametros.ContainsKey(cultivoNormalizado))
+                return NotFound(new { mensaje = $"No hay parámetros de riego configurados para el cultivo '{cultivo}'." });
+
+            var data = parametros[cultivoNormalizado];
+
+
+            // 📊 Calcular volumen recomendado (m³ por hectárea)
+            double areaHa = 1.0;
+            double volumen = data.LaminaNeta * areaHa * 10 * data.Eficiencia;
+            double ahorro = 0;
+
+            // 💧 Buscar la lectura más reciente
+            var ultimaLectura = await _context.Lecturas
+                .Where(l => l.CultivoId == cultivoBD.Id)
+                .OrderByDescending(l => l.Fecha)
+                .FirstOrDefaultAsync();
+
+            string mensaje;
+            if (ultimaLectura != null)
+            {
+                var input = new LecturaInput
+                {
+                    HumedadSuelo = (float)ultimaLectura.HumedadSuelo,
+                    Temperatura = (float)ultimaLectura.Temperatura,
+                    Precipitacion = (float)ultimaLectura.Precipitacion,
+                    Viento = (float)ultimaLectura.Viento,
+                    RadiacionSolar = (float)ultimaLectura.RadiacionSolar,
+                    EtapaCultivo = ultimaLectura.EtapaCultivo,
+                    Cultivo = cultivoBD.Nombre,
+                    Mes = (float)ultimaLectura.Fecha.Month,
+                    DiaDelAnio = (float)ultimaLectura.Fecha.DayOfYear
+                };
+
+                var prediccion = _predEnginePool.Predict(input);
+                float threshold = ObtenerUmbralDesdeJson();
+                bool necesitaRiego = prediccion.Score >= threshold;
+
+                mensaje = necesitaRiego
+                    ? $"El cultivo de {cultivoBD.Nombre} requiere riego hoy. Se recomienda aplicar {Math.Round(volumen, 0)} m³/ha mediante riego por {data.Metodo.ToLower()}."
+                    : $"El cultivo de {cultivoBD.Nombre} no requiere riego en este momento. La humedad del suelo es adecuada.";
+
+                if (!necesitaRiego)
+                    ahorro = volumen;
+            }
+            else
+            {
+                mensaje = $"No hay lecturas recientes para el cultivo de {cultivoBD.Nombre}. Se sugiere una lámina promedio de {data.LaminaNeta} mm.";
+            }
+
+            var respuesta = new
+            {
+                cultivo = cultivoBD.Nombre,
+                metodo_riego = data.Metodo,
+                lamina_neta_mm = data.LaminaNeta,
+                eficiencia = data.Eficiencia,
+                volumen_recomendado_m3 = Math.Round(volumen, 2),
+                ahorro_estimado_m3 = Math.Round(ahorro, 2),
+                mensaje
+            };
+
+            return Ok(respuesta);
+        }
+
+        // =========================================================
+        // 🔹 MÉTODOS PRIVADOS
+        // =========================================================
         private object ConstruirRespuesta(LecturaInput input, DateTime fecha)
         {
             var prediccion = _predEnginePool.Predict(input);
@@ -169,13 +279,12 @@ namespace Controllers
             };
         }
 
-        // 🔍 Lector del umbral dinámico desde el archivo JSON
         private float ObtenerUmbralDesdeJson()
         {
             var ruta = Path.Combine(Directory.GetCurrentDirectory(), "Data", "metricas_modelo.json");
 
             if (!System.IO.File.Exists(ruta))
-                return 0.5f; // Umbral por defecto
+                return 0.5f;
 
             var json = System.IO.File.ReadAllText(ruta);
             using var doc = JsonDocument.Parse(json);
